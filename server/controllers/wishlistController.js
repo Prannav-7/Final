@@ -4,30 +4,42 @@ const Product = require('../models/Product');
 // Get user's wishlist
 exports.getWishlist = async (req, res) => {
   try {
-    const { userId } = req.params;
+    const userId = req.user._id;
     const wishlist = await Wishlist.findOne({ userId }).populate('products');
     
     if (!wishlist) {
-      return res.json({ userId, products: [] });
+      return res.json({ 
+        success: true,
+        data: { userId, products: [] }
+      });
     }
     
-    res.json(wishlist);
+    res.json({ 
+      success: true,
+      data: wishlist 
+    });
   } catch (error) {
     console.error('Get wishlist error:', error);
-    res.status(500).json({ error: 'Something went wrong' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Something went wrong' 
+    });
   }
 };
 
 // Add product to wishlist
 exports.addToWishlist = async (req, res) => {
   try {
-    const { userId } = req.params;
+    const userId = req.user._id;
     const { productId } = req.body;
     
     // Check if product exists
     const product = await Product.findById(productId);
     if (!product) {
-      return res.status(404).json({ error: 'Product not found' });
+      return res.status(404).json({ 
+        success: false,
+        message: 'Product not found' 
+      });
     }
     
     let wishlist = await Wishlist.findOne({ userId });
@@ -41,13 +53,23 @@ exports.addToWishlist = async (req, res) => {
       wishlist.products.push(productId);
       await wishlist.save();
       await wishlist.populate('products');
-      res.json({ message: 'Product added to wishlist successfully', wishlist });
+      res.json({ 
+        success: true,
+        message: 'Product added to wishlist successfully', 
+        data: wishlist 
+      });
     } else {
-      res.status(400).json({ error: 'Product already in wishlist' });
+      res.status(400).json({ 
+        success: false,
+        message: 'Product already in wishlist' 
+      });
     }
   } catch (error) {
     console.error('Add to wishlist error:', error);
-    res.status(500).json({ error: 'Something went wrong' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Something went wrong' 
+    });
   }
 };
 

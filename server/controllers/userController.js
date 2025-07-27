@@ -28,12 +28,13 @@ const registerUser = async (req, res) => {
 
     // Generate JWT token
     const token = jwt.sign(
-      { userId: user._id },
+      { id: user._id },
       process.env.JWT_SECRET || 'fallback_secret',
       { expiresIn: '24h' }
     );
 
     res.status(201).json({
+      success: true,
       message: 'User registered successfully',
       token,
       user: {
@@ -66,12 +67,13 @@ const loginUser = async (req, res) => {
 
     // Generate JWT token
     const token = jwt.sign(
-      { userId: user._id },
+      { id: user._id },
       process.env.JWT_SECRET || 'fallback_secret',
       { expiresIn: '24h' }
     );
 
     res.json({
+      success: true,
       message: 'Login successful',
       token,
       user: {

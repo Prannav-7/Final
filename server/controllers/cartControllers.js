@@ -3,17 +3,25 @@ const Product = require('../models/Product');
 
 // Add item to cart
 const addToCart = async (req, res) => {
-  const { userId, productId, quantity } = req.body;
+  const { productId, quantity = 1 } = req.body;
+  const userId = req.user._id;
+  
   try {
     let cart = await Cart.findOne({ userId });
     const product = await Product.findById(productId);
     
     if (!product) {
-      return res.status(404).json({ error: 'Product not found' });
+      return res.status(404).json({ 
+        success: false,
+        message: 'Product not found' 
+      });
     }
     
     if (product.stock < quantity) {
-      return res.status(400).json({ error: 'Insufficient stock' });
+      return res.status(400).json({ 
+        success: false,
+        message: 'Insufficient stock' 
+      });
     }
 
     if (!cart) {
@@ -32,32 +40,49 @@ const addToCart = async (req, res) => {
     
     await cart.save();
     await cart.populate('items.productId');
-    res.json({ message: 'Item added to cart successfully', cart });
+    
+    res.json({ 
+      success: true,
+      message: 'Item added to cart successfully', 
+      cart 
+    });
   } catch (err) {
     console.error('Add to cart error:', err);
-    res.status(500).json({ error: 'Something went wrong' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Something went wrong' 
+    });
   }
 };
 
 // Get cart items
 const getCart = async (req, res) => {
   try {
-    const { userId } = req.params;
+    const userId = req.user._id;
     const cart = await Cart.findOne({ userId }).populate('items.productId');
     
     if (!cart) {
-      return res.json({ userId, items: [], total: 0 });
+      return res.json({ 
+        success: true,
+        data: { userId, items: [], total: 0 }
+      });
     }
-    
+
     // Calculate total
     const total = cart.items.reduce((sum, item) => {
-      return sum + (item.quantity * item.price);
+      return sum + (item.price * item.quantity);
     }, 0);
-    
-    res.json({ ...cart.toObject(), total });
+
+    res.json({ 
+      success: true,
+      data: { ...cart.toObject(), total }
+    });
   } catch (err) {
     console.error('Get cart error:', err);
-    res.status(500).json({ error: 'Something went wrong' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Something went wrong' 
+    });
   }
 };
 
