@@ -72,6 +72,12 @@ const loginUser = async (req, res) => {
       { expiresIn: '24h' }
     );
 
+    console.log('=== LOGIN TOKEN GENERATION ===');
+    console.log('User ID:', user._id);
+    console.log('JWT Secret used:', process.env.JWT_SECRET || 'fallback_secret');
+    console.log('Generated token:', token.substring(0, 20) + '...');
+    console.log('=== END LOGIN TOKEN GENERATION ===');
+
     res.json({
       success: true,
       message: 'Login successful',

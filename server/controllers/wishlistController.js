@@ -76,40 +76,61 @@ exports.addToWishlist = async (req, res) => {
 // Remove product from wishlist
 exports.removeFromWishlist = async (req, res) => {
   try {
-    const { userId, productId } = req.params;
+    const userId = req.user._id;
+    const { productId } = req.params;
     
     const wishlist = await Wishlist.findOne({ userId });
     if (!wishlist) {
-      return res.status(404).json({ error: 'Wishlist not found' });
+      return res.status(404).json({ 
+        success: false,
+        message: 'Wishlist not found' 
+      });
     }
     
     wishlist.products = wishlist.products.filter(id => id.toString() !== productId);
     await wishlist.save();
     await wishlist.populate('products');
     
-    res.json({ message: 'Product removed from wishlist successfully', wishlist });
+    res.json({ 
+      success: true,
+      message: 'Product removed from wishlist successfully', 
+      data: wishlist 
+    });
   } catch (error) {
     console.error('Remove from wishlist error:', error);
-    res.status(500).json({ error: 'Something went wrong' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Something went wrong' 
+    });
   }
 };
 
 // Clear entire wishlist
 exports.clearWishlist = async (req, res) => {
   try {
-    const { userId } = req.params;
+    const userId = req.user._id;
     
     const wishlist = await Wishlist.findOne({ userId });
     if (!wishlist) {
-      return res.status(404).json({ error: 'Wishlist not found' });
+      return res.status(404).json({ 
+        success: false,
+        message: 'Wishlist not found' 
+      });
     }
     
     wishlist.products = [];
     await wishlist.save();
     
-    res.json({ message: 'Wishlist cleared successfully', wishlist });
+    res.json({ 
+      success: true,
+      message: 'Wishlist cleared successfully', 
+      data: wishlist 
+    });
   } catch (error) {
     console.error('Clear wishlist error:', error);
-    res.status(500).json({ error: 'Something went wrong' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Something went wrong' 
+    });
   }
 };

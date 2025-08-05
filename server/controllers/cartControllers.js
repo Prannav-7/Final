@@ -89,17 +89,31 @@ const getCart = async (req, res) => {
 // Update cart item quantity
 const updateCartItem = async (req, res) => {
   try {
-    const { userId, productId } = req.params;
+    const userId = req.user._id;
+    const { productId } = req.params;
     const { quantity } = req.body;
+    
+    if (quantity < 0) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Quantity cannot be negative' 
+      });
+    }
     
     const cart = await Cart.findOne({ userId });
     if (!cart) {
-      return res.status(404).json({ error: 'Cart not found' });
+      return res.status(404).json({ 
+        success: false,
+        message: 'Cart not found' 
+      });
     }
     
     const itemIndex = cart.items.findIndex(item => item.productId.toString() === productId);
     if (itemIndex === -1) {
-      return res.status(404).json({ error: 'Item not found in cart' });
+      return res.status(404).json({ 
+        success: false,
+        message: 'Item not found in cart' 
+      });
     }
     
     if (quantity <= 0) {
@@ -110,51 +124,80 @@ const updateCartItem = async (req, res) => {
     
     await cart.save();
     await cart.populate('items.productId');
-    res.json({ message: 'Cart updated successfully', cart });
+    
+    res.json({ 
+      success: true,
+      message: 'Cart updated successfully', 
+      data: cart 
+    });
   } catch (err) {
     console.error('Update cart error:', err);
-    res.status(500).json({ error: 'Something went wrong' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Something went wrong' 
+    });
   }
 };
 
 // Remove item from cart
 const removeFromCart = async (req, res) => {
   try {
-    const { userId, productId } = req.params;
+    const userId = req.user._id;
+    const { productId } = req.params;
     
     const cart = await Cart.findOne({ userId });
     if (!cart) {
-      return res.status(404).json({ error: 'Cart not found' });
+      return res.status(404).json({ 
+        success: false,
+        message: 'Cart not found' 
+      });
     }
     
     cart.items = cart.items.filter(item => item.productId.toString() !== productId);
     await cart.save();
     await cart.populate('items.productId');
     
-    res.json({ message: 'Item removed from cart successfully', cart });
+    res.json({ 
+      success: true,
+      message: 'Item removed from cart successfully', 
+      data: cart 
+    });
   } catch (err) {
     console.error('Remove from cart error:', err);
-    res.status(500).json({ error: 'Something went wrong' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Something went wrong' 
+    });
   }
 };
 
 // Clear entire cart
 const clearCart = async (req, res) => {
   try {
-    const { userId } = req.params;
+    const userId = req.user._id;
     
     const cart = await Cart.findOne({ userId });
     if (!cart) {
-      return res.status(404).json({ error: 'Cart not found' });
+      return res.status(404).json({ 
+        success: false,
+        message: 'Cart not found' 
+      });
     }
     
     cart.items = [];
     await cart.save();
     
-    res.json({ message: 'Cart cleared successfully', cart });
+    res.json({ 
+      success: true,
+      message: 'Cart cleared successfully', 
+      data: cart 
+    });
   } catch (err) {
     console.error('Clear cart error:', err);
-    res.status(500).json({ error: 'Something went wrong' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Something went wrong' 
+    });
   }
 };
 

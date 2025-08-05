@@ -8,15 +8,8 @@ const wishlistSchema = new mongoose.Schema({
     unique: true
   },
   products: [{
-    productId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Product',
-      required: true
-    },
-    addedAt: {
-      type: Date,
-      default: Date.now
-    }
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Product'
   }],
   createdAt: {
     type: Date,
