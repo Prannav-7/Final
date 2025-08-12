@@ -1,28 +1,21 @@
 const Order = require('../models/Order');
 const Product = require('../models/Product');
+const { checkStockAvailability, reduceStock, restoreStock } = require('../utils/stockManager');
 
 // Create new order
 const createOrder = async (req, res) => {
   try {
     const userId = req.user._id;
-    const { items, customerDetails, orderSummary } = req.body;
+    const { items, customerDetails, orderSummary, paymentDetails } = req.body;
 
-    // Validate items and check stock
-    for (let item of items) {
-      const product = await Product.findById(item.productId);
-      if (!product) {
-        return res.status(404).json({
-          success: false,
-          message: `Product not found: ${item.productId}`
-        });
-      }
-      
-      if (product.stock < item.quantity) {
-        return res.status(400).json({
-          success: false,
-          message: `Insufficient stock for ${product.name}. Available: ${product.stock}, Requested: ${item.quantity}`
-        });
-      }
+    // Check stock availability using utility function
+    const stockCheck = await checkStockAvailability(items);
+    if (!stockCheck.success) {
+      return res.status(400).json({
+        success: false,
+        message: stockCheck.message,
+        insufficientProducts: stockCheck.insufficientProducts
+      });
     }
 
     // Create order
@@ -31,18 +24,33 @@ const createOrder = async (req, res) => {
       items,
       customerDetails,
       orderSummary,
+      paymentDetails: paymentDetails || {
+        method: 'cod',
+        status: 'pending'
+      },
       status: 'confirmed',
-      paymentStatus: 'paid' // In a real app, this would be set after payment processing
+      paymentStatus: paymentDetails?.method === 'cod' ? 'pending' : 'paid'
     });
 
     await order.save();
 
-    // Update product stock
-    for (let item of items) {
-      await Product.findByIdAndUpdate(
-        item.productId,
-        { $inc: { stock: -item.quantity } }
-      );
+    // Reduce stock levels using utility function
+    // For both paid orders and COD orders to prevent overselling
+    if (paymentDetails?.status === 'completed' || 
+        paymentDetails?.method === 'cod' || 
+        paymentDetails?.method === 'upi' ||
+        paymentDetails?.method === 'razorpay') {
+      const stockReduction = await reduceStock(items);
+      if (!stockReduction.success) {
+        // If stock reduction fails, we should consider cancelling the order
+        console.error('Stock reduction failed for order:', order._id);
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to update stock levels. Order may need manual review.',
+          orderId: order._id
+        });
+      }
+      console.log('Stock levels updated for order:', order._id, stockReduction.updatedProducts);
     }
 
     // Populate order with product details
@@ -50,7 +58,7 @@ const createOrder = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Order placed successfully',
+      message: 'Order placed successfully and stock updated',
       data: order
     });
   } catch (error) {
@@ -163,17 +171,17 @@ const cancelOrder = async (req, res) => {
     order.status = 'cancelled';
     await order.save();
 
-    // Restore product stock
-    for (let item of order.items) {
-      await Product.findByIdAndUpdate(
-        item.productId,
-        { $inc: { stock: item.quantity } }
-      );
+    // Restore product stock using utility function
+    const stockRestoration = await restoreStock(order.items);
+    if (stockRestoration.success) {
+      console.log('Stock restored for cancelled order:', order._id, stockRestoration.updatedProducts);
+    } else {
+      console.error('Failed to restore stock for cancelled order:', order._id);
     }
 
     res.json({
       success: true,
-      message: 'Order cancelled successfully',
+      message: 'Order cancelled successfully and stock restored',
       data: order
     });
   } catch (error) {

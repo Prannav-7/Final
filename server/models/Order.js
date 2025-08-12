@@ -41,6 +41,22 @@ const orderSchema = new mongoose.Schema({
     total: { type: Number, required: true },
     itemCount: { type: Number, required: true }
   },
+  paymentDetails: {
+    paymentId: String,
+    orderId: String,
+    signature: String,
+    method: {
+      type: String,
+      enum: ['razorpay', 'cod', 'upi', 'card', 'wallet', 'netbanking'],
+      default: 'cod'
+    },
+    status: {
+      type: String,
+      enum: ['pending', 'completed', 'failed', 'refunded'],
+      default: 'pending'
+    },
+    selectedOption: String // For storing specific payment option like 'gpay', 'phonepe', etc.
+  },
   status: {
     type: String,
     enum: ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'],
@@ -54,7 +70,11 @@ const orderSchema = new mongoose.Schema({
   orderNumber: {
     type: String,
     unique: true
-  }
+  },
+  estimatedDelivery: {
+    type: Date
+  },
+  trackingId: String
 }, {
   timestamps: true
 });
@@ -64,6 +84,16 @@ orderSchema.pre('save', function(next) {
   if (!this.orderNumber) {
     this.orderNumber = 'ORD' + Date.now() + Math.floor(Math.random() * 1000);
   }
+  
+  if (!this.trackingId) {
+    this.trackingId = 'TRK' + Date.now() + Math.random().toString(36).substr(2, 5).toUpperCase();
+  }
+  
+  // Set estimated delivery (7 days from order date)
+  if (!this.estimatedDelivery) {
+    this.estimatedDelivery = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  }
+  
   next();
 });
 

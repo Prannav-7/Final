@@ -1,0 +1,7 @@
+2025-08-12T15:12:40.453Z: === UPI PAYMENT VERIFICATION ENDPOINT CALLED ===
+2025-08-12T15:12:40.454Z: User authenticated: admin@gmail.com, ID: 6896f0ad25294821c5bad6d0
+2025-08-12T15:12:40.455Z: === UPI Payment Verification Started ===
+2025-08-12T15:12:40.455Z: Request body received: orderId=upi_order_1755011557032_epyw62jb1, amount=14237, hasOrderData=true, userId=6896f0ad25294821c5bad6d0
+2025-08-12T15:12:40.457Z: Order data details: items=3, customerDetails=firstName,lastName,email,phone,address,city,state,pincode,landmark, orderSummary=present
+2025-08-12T15:12:40.479Z: Stock levels updated successfully: [{"productId":"6888ff986653a9865915c1f6","productName":"Anchor Roma 16A Socket","previousStock":113,"currentStock":110,"quantityReduced":3},{"productId":"6888ff986653a9865915c1f3","productName":"Havells 32A MCB Single Pole","previousStock":10,"currentStock":8,"quantityReduced":2},{"productId":"6888ff986653a9865915c1fa","productName":"Bosch GSB 600 RE Impact Drill","previousStock":25,"currentStock":22,"quantityReduced":3}]
+2025-08-12T15:12:40.500Z: === UPI Payment Verification Completed Successfully ===

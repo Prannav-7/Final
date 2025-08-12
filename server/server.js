@@ -9,6 +9,8 @@ const userRoutes = require('./routes/userRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const wishlistRoutes = require('./routes/wishlistRoutes');
 const cartRoutes = require('./routes/cartRoutes');
+const paymentRoutes = require('./routes/paymentRoutes');
+const debugRoutes = require('./routes/debugRoutes');
 
 dotenv.config();
 const app = express();
@@ -56,6 +58,8 @@ app.use('/api/users', userRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/wishlist', wishlistRoutes);
 app.use('/api/cart', cartRoutes);
+app.use('/api/payment', paymentRoutes);
+app.use('/api/debug', debugRoutes);
 
 // File upload endpoint
 app.post('/api/upload', upload.single('image'), (req, res) => {
