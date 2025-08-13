@@ -419,45 +419,10 @@ const getPaymentMethods = async (req, res) => {
         ]
       },
       {
-        id: 'cards',
-        name: 'Cards',
-        icon: '💳',
-        description: 'Credit & Debit Cards',
-        options: [
-          { id: 'credit_card', name: 'Credit Card', icon: '💳' },
-          { id: 'debit_card', name: 'Debit Card', icon: '💳' }
-        ]
-      },
-      {
-        id: 'wallets',
-        name: 'Wallets',
-        icon: '👛',
-        description: 'Digital Wallets',
-        options: [
-          { id: 'paytm_wallet', name: 'Paytm Wallet', icon: '🔵' },
-          { id: 'phonepe_wallet', name: 'PhonePe Wallet', icon: '🟣' },
-          { id: 'amazon_pay', name: 'Amazon Pay', icon: '🟡' },
-          { id: 'mobikwik', name: 'MobiKwik', icon: '🔴' }
-        ]
-      },
-      {
-        id: 'netbanking',
-        name: 'Net Banking',
-        icon: '🏦',
-        description: 'Internet Banking',
-        options: [
-          { id: 'sbi', name: 'State Bank of India', icon: '🏦' },
-          { id: 'hdfc', name: 'HDFC Bank', icon: '🏦' },
-          { id: 'icici', name: 'ICICI Bank', icon: '🏦' },
-          { id: 'axis', name: 'Axis Bank', icon: '🏦' },
-          { id: 'other_banks', name: 'Other Banks', icon: '🏦' }
-        ]
-      },
-      {
         id: 'cod',
         name: 'Cash on Delivery',
-        icon: '💵',
-        description: 'Pay when you receive',
+        icon: '�',
+        description: 'Pay when you receive the order',
         options: []
       }
     ];
@@ -475,10 +440,170 @@ const getPaymentMethods = async (req, res) => {
   }
 };
 
+// Verify COD order
+const verifyCODPayment = async (req, res) => {
+  try {
+    console.log('=== COD Payment Verification Started ===');
+    const { orderId, orderData } = req.body;
+    
+    console.log(`COD Order received: orderId=${orderId}, hasOrderData=${!!orderData}, userId=${req.user._id}`);
+    
+    // Validate required order data
+    if (!orderData) {
+      console.error('Missing orderData in COD request');
+      return res.status(400).json({
+        success: false,
+        message: 'Missing order data'
+      });
+    }
+
+    if (!orderData.items || !Array.isArray(orderData.items) || orderData.items.length === 0) {
+      console.error('Invalid or missing items:', orderData.items);
+      return res.status(400).json({
+        success: false,
+        message: 'Missing or invalid items in order data'
+      });
+    }
+
+    if (!orderData.customerDetails) {
+      console.error('Missing customerDetails:', orderData.customerDetails);
+      return res.status(400).json({
+        success: false,
+        message: 'Missing customer details in order data'
+      });
+    }
+
+    if (!orderData.orderSummary) {
+      console.error('Missing orderSummary:', orderData.orderSummary);
+      return res.status(400).json({
+        success: false,
+        message: 'Missing order summary in order data'
+      });
+    }
+
+    // For COD, we create the order immediately but mark payment as pending
+    const orderNumber = `COD-${Date.now()}`;
+    
+    console.log('Processing COD order items:', orderData.items);
+    
+    // Format items properly
+    const formattedItems = orderData.items.map((item, index) => {
+      console.log(`COD Item ${index}:`, item);
+      return {
+        productId: item.productId || item._id,
+        quantity: parseInt(item.quantity) || 1,
+        price: parseFloat(item.price) || 0,
+        name: item.name || `Product ${index + 1}`
+      };
+    });
+
+    console.log('Formatted COD items:', formattedItems);
+
+    // Check stock availability for COD orders too
+    console.log('Checking stock availability for COD order...');
+    const stockCheck = await checkStockAvailability(formattedItems);
+    console.log('COD Stock check result:', stockCheck);
+    if (!stockCheck.success) {
+      return res.status(400).json({
+        success: false,
+        message: stockCheck.message,
+        insufficientProducts: stockCheck.insufficientProducts
+      });
+    }
+    
+    // For COD, we can reserve stock but don't reduce it until delivery
+    // For now, we'll reduce stock immediately like other payment methods
+    console.log('Reducing stock for COD order...');
+    const stockReduction = await reduceStock(formattedItems);
+    console.log('COD Stock reduction result:', stockReduction);
+    if (!stockReduction.success) {
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to update stock levels'
+      });
+    }
+    
+    console.log('Stock levels updated for COD order:', stockReduction.updatedProducts);
+
+    const orderSummary = {
+      subtotal: parseFloat(orderData.orderSummary.subtotal) || 0,
+      shipping: parseFloat(orderData.orderSummary.shipping) || 0,
+      tax: parseFloat(orderData.orderSummary.tax) || 0,
+      total: parseFloat(orderData.orderSummary.total) || 0,
+      itemCount: parseInt(orderData.orderSummary.itemCount) || formattedItems.length
+    };
+
+    console.log('COD Order summary:', orderSummary);
+
+    const orderToCreate = {
+      userId: req.user._id,
+      items: formattedItems,
+      customerDetails: orderData.customerDetails,
+      orderSummary: orderSummary,
+      paymentDetails: {
+        paymentId: `cod_${Date.now()}`,
+        orderId: orderId,
+        method: 'cod',
+        status: 'pending',
+        selectedOption: 'cash_on_delivery'
+      },
+      status: 'confirmed',
+      paymentStatus: 'pending', // COD orders are pending until delivery
+      orderNumber: orderNumber
+    };
+
+    console.log('Creating COD order with data:', JSON.stringify(orderToCreate, null, 2));
+    
+    const order = new Order(orderToCreate);
+
+    console.log('About to save COD order with userId:', req.user._id);
+    const savedOrder = await order.save();
+    console.log('COD Order saved successfully:', {
+      id: savedOrder._id,
+      orderNumber: savedOrder.orderNumber,
+      total: savedOrder.orderSummary.total,
+      itemCount: savedOrder.orderSummary.itemCount,
+      userId: savedOrder.userId,
+      paymentStatus: savedOrder.paymentStatus
+    });
+
+    res.json({
+      success: true,
+      message: 'COD Order placed successfully',
+      order: {
+        _id: savedOrder._id,
+        orderNumber: savedOrder.orderNumber,
+        paymentId: orderToCreate.paymentDetails.paymentId,
+        status: savedOrder.status,
+        paymentStatus: savedOrder.paymentStatus,
+        total: savedOrder.orderSummary.total,
+        items: savedOrder.items,
+        customerDetails: savedOrder.customerDetails
+      },
+      paymentId: orderToCreate.paymentDetails.paymentId
+    });
+
+    console.log('=== COD Payment Verification Completed Successfully ===');
+  } catch (error) {
+    console.error('=== COD Payment Verification Error ===');
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    console.error('Request body was:', req.body);
+    
+    res.status(500).json({
+      success: false,
+      message: 'Failed to process COD order',
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+};
+
 module.exports = {
   createPaymentOrder,
   verifyPayment,
   createUPIOrder,
   verifyUPIPayment,
+  verifyCODPayment,
   getPaymentMethods
 };

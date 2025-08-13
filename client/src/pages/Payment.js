@@ -83,25 +83,61 @@ const Payment = () => {
   const handleCODPayment = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/orders', {
+      
+      console.log('Processing COD payment with order data:', orderData);
+      console.log('Order total:', orderTotal);
+      
+      // Validate order data
+      if (!orderData || !orderData.items || !orderData.customerDetails || !orderData.orderSummary) {
+        throw new Error('Invalid order data structure');
+      }
+      
+      // Calculate correct total if orderTotal seems incorrect
+      const calculatedTotal = orderData.orderSummary.total || 
+                             (orderData.orderSummary.subtotal + orderData.orderSummary.shipping + orderData.orderSummary.tax) ||
+                             orderTotal;
+      
+      console.log('Using total amount for COD:', calculatedTotal);
+      
+      const response = await fetch('http://localhost:5000/api/payment/verify-cod', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          ...orderData,
-          paymentDetails: {
-            method: 'cod',
-            status: 'pending',
-            selectedOption: 'cash_on_delivery'
+          amount: calculatedTotal,
+          orderData: {
+            ...orderData,
+            // Ensure items have correct structure
+            items: orderData.items.map(item => ({
+              productId: item.productId || item._id,
+              quantity: parseInt(item.quantity) || 1,
+              price: parseFloat(item.price) || 0,
+              name: item.name || item.productId?.name || 'Product'
+            })),
+            // Ensure order summary is properly formatted
+            orderSummary: {
+              subtotal: parseFloat(orderData.orderSummary.subtotal) || 0,
+              shipping: parseFloat(orderData.orderSummary.shipping) || 0,
+              tax: parseFloat(orderData.orderSummary.tax) || 0,
+              total: calculatedTotal,
+              itemCount: parseInt(orderData.orderSummary.itemCount) || orderData.items.length
+            },
+            paymentDetails: {
+              method: 'cod',
+              status: 'pending',
+              selectedOption: 'cash_on_delivery'
+            }
           }
         })
       });
 
       const result = await response.json();
+      console.log('COD payment result:', result);
       
       if (result.success) {
+        // Clear cart
         await fetch('http://localhost:5000/api/cart/clear', {
           method: 'DELETE',
           headers: {
@@ -114,13 +150,16 @@ const Payment = () => {
           state: { 
             orderId: result.order._id,
             orderNumber: result.order.orderNumber,
-            paymentMethod: 'Cash on Delivery'
+            paymentMethod: 'Cash on Delivery',
+            amount: calculatedTotal,
+            orderData: orderData
           } 
         });
       } else {
-        throw new Error(result.message);
+        throw new Error(result.message || 'COD order creation failed');
       }
     } catch (error) {
+      console.error('COD payment error:', error);
       throw error;
     }
   };

@@ -5,6 +5,7 @@ const {
   verifyPayment,
   createUPIOrder,
   verifyUPIPayment,
+  verifyCODPayment,
   getPaymentMethods
 } = require('../controllers/paymentController');
 const authMiddleware = require('../middleware/authMiddleware');
@@ -23,5 +24,8 @@ router.post('/verify', authMiddleware, verifyPayment);
 
 // Verify UPI payment
 router.post('/verify-upi', authMiddleware, verifyUPIPayment);
+
+// Verify COD order
+router.post('/verify-cod', authMiddleware, verifyCODPayment);
 
 module.exports = router;

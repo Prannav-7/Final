@@ -15,7 +15,7 @@ import Payment from './pages/Payment';
 import OrderSuccess from './pages/OrderSuccess';
 import AboutUs from './pages/AboutUs';
 import InventoryDashboard from './pages/InventoryDashboard';
-import AdminDashboard from './pages/AdminDashboard';
+import NewAdminDashboard from './pages/NewAdminDashboard';
 import AddProduct from './pages/AddProduct';
 
 function App() {
@@ -38,7 +38,7 @@ function App() {
           <Route path="/about" element={<AboutUs />} />
           <Route path="/admin" element={
             <AdminRoute>
-              <AdminDashboard />
+              <NewAdminDashboard />
             </AdminRoute>
           } />
           <Route path="/inventory" element={

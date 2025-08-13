@@ -1,5 +1,6 @@
 const Order = require('../models/Order');
 const Product = require('../models/Product');
+const User = require('../models/User');
 const { checkStockAvailability, reduceStock, restoreStock } = require('../utils/stockManager');
 
 // Create new order
@@ -193,9 +194,299 @@ const cancelOrder = async (req, res) => {
   }
 };
 
+// Get daily sales report for admin
+const getDailySalesReport = async (req, res) => {
+  try {
+    const { date } = req.query;
+    
+    // If date is provided, use it; otherwise use today
+    const reportDate = date ? new Date(date) : new Date();
+    const startOfDay = new Date(reportDate.setHours(0, 0, 0, 0));
+    const endOfDay = new Date(reportDate.setHours(23, 59, 59, 999));
+
+    console.log(`Generating sales report for: ${startOfDay} to ${endOfDay}`);
+
+    // Get all orders for the specified day
+    const orders = await Order.find({
+      createdAt: {
+        $gte: startOfDay,
+        $lte: endOfDay
+      }
+    })
+    .populate('userId', 'name email role')
+    .populate('items.productId', 'name category price')
+    .sort({ createdAt: -1 });
+
+    // Calculate daily statistics
+    const totalOrders = orders.length;
+    const totalRevenue = orders.reduce((sum, order) => sum + (order.orderSummary?.total || 0), 0);
+    const completedOrders = orders.filter(order => order.status === 'confirmed' || order.status === 'delivered').length;
+    const pendingOrders = orders.filter(order => order.status === 'pending').length;
+    const cancelledOrders = orders.filter(order => order.status === 'cancelled').length;
+
+    // Payment method breakdown
+    const paymentMethodBreakdown = {};
+    orders.forEach(order => {
+      const method = order.paymentDetails?.method || 'unknown';
+      if (!paymentMethodBreakdown[method]) {
+        paymentMethodBreakdown[method] = { count: 0, revenue: 0 };
+      }
+      paymentMethodBreakdown[method].count += 1;
+      paymentMethodBreakdown[method].revenue += (order.orderSummary?.total || 0);
+    });
+
+    // Product sales breakdown
+    const productSales = {};
+    orders.forEach(order => {
+      order.items.forEach(item => {
+        const productName = item.productId?.name || `Product ${item.productId}`;
+        const productId = item.productId?._id || item.productId;
+        
+        if (!productSales[productId]) {
+          productSales[productId] = {
+            name: productName,
+            category: item.productId?.category || 'Unknown',
+            totalQuantity: 0,
+            totalRevenue: 0,
+            orders: 0
+          };
+        }
+        productSales[productId].totalQuantity += item.quantity;
+        productSales[productId].totalRevenue += (item.price * item.quantity);
+        productSales[productId].orders += 1;
+      });
+    });
+
+    // Convert to array and sort by revenue
+    const topProducts = Object.values(productSales)
+      .sort((a, b) => b.totalRevenue - a.totalRevenue)
+      .slice(0, 10);
+
+    // Customer details with order info
+    const customerOrders = orders.map(order => ({
+      orderId: order._id,
+      orderNumber: order.orderNumber,
+      customer: {
+        userId: order.userId?._id,
+        name: order.userId?.name || `${order.customerDetails.firstName} ${order.customerDetails.lastName}`,
+        email: order.customerDetails.email,
+        phone: order.customerDetails.phone,
+        address: {
+          street: order.customerDetails.address,
+          city: order.customerDetails.city,
+          state: order.customerDetails.state,
+          pincode: order.customerDetails.pincode,
+          landmark: order.customerDetails.landmark
+        }
+      },
+      orderDetails: {
+        items: order.items.map(item => ({
+          product: item.productId?.name || 'Unknown Product',
+          category: item.productId?.category || 'Unknown',
+          quantity: item.quantity,
+          price: item.price,
+          total: item.quantity * item.price
+        })),
+        orderSummary: order.orderSummary,
+        paymentMethod: order.paymentDetails?.method || 'unknown',
+        paymentStatus: order.paymentStatus,
+        status: order.status,
+        orderDate: order.createdAt,
+        estimatedDelivery: order.estimatedDelivery,
+        trackingId: order.trackingId
+      }
+    }));
+
+    const report = {
+      date: reportDate.toDateString(),
+      summary: {
+        totalOrders,
+        totalRevenue,
+        completedOrders,
+        pendingOrders,
+        cancelledOrders,
+        averageOrderValue: totalOrders > 0 ? (totalRevenue / totalOrders).toFixed(2) : 0
+      },
+      paymentMethodBreakdown,
+      topProducts,
+      customerOrders
+    };
+
+    res.json({
+      success: true,
+      data: report
+    });
+  } catch (error) {
+    console.error('Daily sales report error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to generate daily sales report',
+      error: error.message
+    });
+  }
+};
+
+// Get all orders for admin with customer details
+const getAllOrdersForAdmin = async (req, res) => {
+  try {
+    const { page = 1, limit = 50, status, paymentMethod, startDate, endDate } = req.query;
+
+    // Build query
+    const query = {};
+    
+    if (status) {
+      query.status = status;
+    }
+    
+    if (paymentMethod) {
+      query['paymentDetails.method'] = paymentMethod;
+    }
+    
+    if (startDate && endDate) {
+      query.createdAt = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate)
+      };
+    }
+
+    const totalOrders = await Order.countDocuments(query);
+    const orders = await Order.find(query)
+      .populate('userId', 'name email role createdAt')
+      .populate('items.productId', 'name category price stock')
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    const ordersWithDetails = orders.map(order => ({
+      _id: order._id,
+      orderNumber: order.orderNumber,
+      customer: {
+        userId: order.userId?._id,
+        registeredUser: order.userId ? {
+          name: order.userId.name,
+          email: order.userId.email,
+          memberSince: order.userId.createdAt
+        } : null,
+        orderDetails: {
+          name: `${order.customerDetails.firstName} ${order.customerDetails.lastName}`,
+          email: order.customerDetails.email,
+          phone: order.customerDetails.phone,
+          address: {
+            fullAddress: `${order.customerDetails.address}, ${order.customerDetails.city}, ${order.customerDetails.state} - ${order.customerDetails.pincode}`,
+            details: order.customerDetails
+          }
+        }
+      },
+      items: order.items.map(item => ({
+        product: {
+          id: item.productId?._id,
+          name: item.productId?.name || 'Product Unavailable',
+          category: item.productId?.category || 'Unknown'
+        },
+        quantity: item.quantity,
+        price: item.price,
+        total: item.quantity * item.price
+      })),
+      orderSummary: order.orderSummary,
+      payment: {
+        method: order.paymentDetails?.method || 'unknown',
+        status: order.paymentStatus,
+        paymentId: order.paymentDetails?.paymentId,
+        selectedOption: order.paymentDetails?.selectedOption
+      },
+      status: order.status,
+      dates: {
+        orderDate: order.createdAt,
+        updatedAt: order.updatedAt,
+        estimatedDelivery: order.estimatedDelivery
+      },
+      trackingId: order.trackingId
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        orders: ordersWithDetails,
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages: Math.ceil(totalOrders / limit),
+          totalOrders,
+          hasMore: (page * limit) < totalOrders
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Get all orders error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch orders',
+      error: error.message
+    });
+  }
+};
+
+// Get monthly sales summary
+const getMonthlySalesSummary = async (req, res) => {
+  try {
+    const { year = new Date().getFullYear(), month } = req.query;
+    
+    let startDate, endDate;
+    
+    if (month) {
+      // Specific month
+      startDate = new Date(year, month - 1, 1);
+      endDate = new Date(year, month, 0, 23, 59, 59, 999);
+    } else {
+      // Entire year
+      startDate = new Date(year, 0, 1);
+      endDate = new Date(year, 11, 31, 23, 59, 59, 999);
+    }
+
+    const orders = await Order.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: startDate, $lte: endDate }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            year: { $year: '$createdAt' },
+            month: { $month: '$createdAt' },
+            day: { $dayOfMonth: '$createdAt' }
+          },
+          totalOrders: { $sum: 1 },
+          totalRevenue: { $sum: '$orderSummary.total' },
+          avgOrderValue: { $avg: '$orderSummary.total' }
+        }
+      },
+      {
+        $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 }
+      }
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        period: month ? `${year}-${month}` : `${year}`,
+        dailySummary: orders
+      }
+    });
+  } catch (error) {
+    console.error('Monthly sales summary error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get monthly sales summary'
+    });
+  }
+};
+
 module.exports = {
   createOrder,
   getUserOrders,
   getOrderById,
-  cancelOrder
+  cancelOrder,
+  getDailySalesReport,
+  getAllOrdersForAdmin,
+  getMonthlySalesSummary
 };
