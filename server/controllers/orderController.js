@@ -331,31 +331,58 @@ const getAllOrdersForAdmin = async (req, res) => {
   try {
     const { page = 1, limit = 50, status, paymentMethod, startDate, endDate } = req.query;
 
+    console.log('Admin orders query params:', { page, limit, status, paymentMethod, startDate, endDate });
+
     // Build query
     const query = {};
     
-    if (status) {
+    if (status && status !== '') {
       query.status = status;
+      console.log('Filtering by status:', status);
     }
     
-    if (paymentMethod) {
+    if (paymentMethod && paymentMethod !== '') {
       query['paymentDetails.method'] = paymentMethod;
+      console.log('Filtering by payment method:', paymentMethod);
     }
     
     if (startDate && endDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      
       query.createdAt = {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate)
+        $gte: start,
+        $lte: end
       };
+      console.log('Filtering by date range:', { start, end });
+    } else if (startDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      query.createdAt = { $gte: start };
+      console.log('Filtering by start date:', start);
+    } else if (endDate) {
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      query.createdAt = { $lte: end };
+      console.log('Filtering by end date:', end);
     }
 
+    console.log('Final MongoDB query:', JSON.stringify(query, null, 2));
+
     const totalOrders = await Order.countDocuments(query);
+    console.log('Total orders matching query:', totalOrders);
+    
     const orders = await Order.find(query)
       .populate('userId', 'name email role createdAt')
       .populate('items.productId', 'name category price stock')
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
+
+    console.log('Orders returned:', orders.length);
 
     const ordersWithDetails = orders.map(order => ({
       _id: order._id,

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import AdminIndicator from '../components/AdminIndicator';
+import SalesDashboard from '../components/SalesDashboard';
+import CustomerOrders from '../components/CustomerOrders';
 import { useAdmin } from '../hooks/useAdmin';
 import api from '../api';
 
@@ -535,6 +537,14 @@ const AdminDashboard = () => {
             </div>
           </div>
         )}
+        </div>
+        )}
+
+        {/* Sales Tab Content */}
+        {activeTab === 'sales' && <SalesDashboard />}
+
+        {/* Orders Tab Content */}
+        {activeTab === 'orders' && <CustomerOrders />}
       </div>
 
       <AdminIndicator showStatus={true} />

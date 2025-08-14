@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import api from '../api';
 
 const CustomerOrders = () => {
@@ -12,19 +12,31 @@ const CustomerOrders = () => {
     endDate: ''
   });
 
-  const fetchOrdersData = async (page = 1) => {
+  const fetchOrdersData = useCallback(async (page = 1) => {
     try {
       setLoading(true);
+      
+      // Build query parameters more explicitly
       const queryParams = new URLSearchParams({
         page: page.toString(),
-        limit: '20',
-        ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v))
+        limit: '20'
       });
+      
+      // Add filters only if they have values
+      if (filters.status) queryParams.set('status', filters.status);
+      if (filters.paymentMethod) queryParams.set('paymentMethod', filters.paymentMethod);
+      if (filters.startDate) queryParams.set('startDate', filters.startDate);
+      if (filters.endDate) queryParams.set('endDate', filters.endDate);
+      
+      console.log('Fetching orders with params:', queryParams.toString());
       
       const response = await api.get(`/orders/admin/all-orders?${queryParams}`);
       if (response.data?.success) {
         setOrdersData(response.data.data);
         setCurrentPage(page);
+        console.log('Orders fetched successfully:', response.data.data);
+      } else {
+        console.error('Failed to fetch orders:', response.data);
       }
     } catch (error) {
       console.error('Error fetching orders data:', error);
@@ -32,28 +44,37 @@ const CustomerOrders = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters]);
 
   useEffect(() => {
     fetchOrdersData();
-  }, []);
+  }, [fetchOrdersData]);
+
+  // Auto-apply filters when they change
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      console.log('Filters changed, applying:', filters);
+      fetchOrdersData(1);
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [filters, fetchOrdersData]);
 
   const handleFilterChange = (key, value) => {
+    console.log(`Filter changed: ${key} = ${value}`);
     setFilters(prev => ({ ...prev, [key]: value }));
-  };
-
-  const applyFilters = () => {
-    fetchOrdersData(1);
+    setCurrentPage(1); // Reset to first page when filters change
   };
 
   const clearFilters = () => {
+    console.log('Clearing filters');
     setFilters({
       status: '',
       paymentMethod: '',
       startDate: '',
       endDate: ''
     });
-    setTimeout(() => fetchOrdersData(1), 100);
+    setCurrentPage(1);
   };
 
   const getStatusBadge = (status) => {
@@ -149,6 +170,19 @@ const CustomerOrders = () => {
       }}>
         <h2 style={{ fontSize: '1.8rem', fontWeight: '700', margin: '0 0 20px 0', color: '#2c3e50' }}>
           🛍️ Customer Orders Management
+          {(filters.status || filters.paymentMethod || filters.startDate || filters.endDate) && (
+            <span style={{
+              marginLeft: '10px',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white',
+              padding: '4px 8px',
+              borderRadius: '12px',
+              fontSize: '12px',
+              fontWeight: '600'
+            }}>
+              Filters Active
+            </span>
+          )}
         </h2>
         
         <div style={{
@@ -202,7 +236,10 @@ const CustomerOrders = () => {
               <option value="">All Methods</option>
               <option value="cod">Cash on Delivery</option>
               <option value="upi">UPI Payment</option>
-              <option value="razorpay">Online Payment</option>
+              <option value="razorpay">Razorpay</option>
+              <option value="card">Card Payment</option>
+              <option value="wallet">Wallet</option>
+              <option value="netbanking">Net Banking</option>
             </select>
           </div>
 
@@ -246,22 +283,6 @@ const CustomerOrders = () => {
         </div>
 
         <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-          <button
-            onClick={applyFilters}
-            style={{
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              color: 'white',
-              border: 'none',
-              padding: '12px 25px',
-              borderRadius: '15px',
-              fontSize: '14px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              transition: 'all 0.3s ease'
-            }}
-          >
-            🔍 Apply Filters
-          </button>
           <button
             onClick={clearFilters}
             style={{
