@@ -1,6 +1,6 @@
 // src/pages/ProductList.js
 import React, { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import api from '../api';
 import Header from '../components/Header';
 import { useAuth } from '../contexts/AuthContext';
@@ -8,7 +8,6 @@ import { useCart } from '../contexts/CartContext';
 
 const ProductList = () => {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
-  const { addToCart: addToCartContext } = useCart();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -78,77 +77,6 @@ const ProductList = () => {
       setCategory('');
     }
   }, [searchParams]);
-
-  // Add to cart function
-  const addToCart = async (product) => {
-    console.log('=== ADD TO CART DEBUG ===');
-    console.log('ProductList: Add to cart clicked');
-    console.log('isAuthenticated:', isAuthenticated);
-    console.log('authLoading:', authLoading);
-    console.log('user:', user);
-    console.log('Token in localStorage:', localStorage.getItem('token') ? 'Present' : 'Not found');
-    console.log('User in localStorage:', localStorage.getItem('user') ? 'Present' : 'Not found');
-    console.log('=== END DEBUG ===');
-    
-    // Wait for auth to be loaded
-    if (authLoading) {
-      console.log('Auth still loading, please wait...');
-      alert('Loading authentication, please try again in a moment');
-      return;
-    }
-    
-    if (!isAuthenticated) {
-      console.log('Not authenticated, redirecting to login');
-      alert('Please login to add items to cart');
-      navigate('/login');
-      return;
-    }
-
-    try {
-      console.log('ProductList: Using CartContext to add product:', product._id);
-      const success = await addToCartContext(product._id, 1);
-
-      if (success) {
-        alert('Product added to cart successfully!');
-        console.log('ProductList: Product added successfully via CartContext');
-      } else {
-        alert('Failed to add product to cart');
-        console.log('ProductList: Failed to add product via CartContext');
-      }
-    } catch (error) {
-      console.error('Error adding to cart:', error);
-      alert('Error adding to cart: ' + (error.response?.data?.message || error.message));
-    }
-  };
-
-  // Add to wishlist function
-  const addToWishlist = async (product) => {
-    console.log('ProductList: Add to wishlist clicked, isAuthenticated:', isAuthenticated, 'user:', user);
-    
-    if (!isAuthenticated) {
-      alert('Please login to add items to wishlist');
-      navigate('/login');
-      return;
-    }
-
-    try {
-      console.log('ProductList: Making add to wishlist request for product:', product._id);
-      const response = await api.post('/wishlist/add', {
-        productId: product._id
-      });
-
-      console.log('ProductList: Add to wishlist response:', response.data);
-
-      if (response.data.success) {
-        alert('Product added to wishlist successfully!');
-      } else {
-        alert('Failed to add product to wishlist');
-      }
-    } catch (error) {
-      console.error('Error adding to wishlist:', error);
-      alert('Error adding to wishlist: ' + (error.response?.data?.message || error.message));
-    }
-  };
 
   // Filter and sort products
   const filteredProducts = products
@@ -475,65 +403,32 @@ const ProductList = () => {
                 </div>
 
                 {/* Action Buttons */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      addToCart(product);
-                    }}
-                    disabled={authLoading}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '10px' }}>
+                  <Link 
+                    to={`/products/${product._id}`}
                     style={{
-                      backgroundColor: authLoading ? '#ccc' : '#667eea',
+                      backgroundColor: '#667eea',
                       color: 'white',
                       border: 'none',
                       padding: '12px',
                       borderRadius: '8px',
-                      cursor: authLoading ? 'not-allowed' : 'pointer',
+                      cursor: 'pointer',
                       fontSize: '14px',
                       fontWeight: '500',
-                      transition: 'background-color 0.3s ease'
+                      transition: 'background-color 0.3s ease',
+                      textDecoration: 'none',
+                      textAlign: 'center',
+                      display: 'block'
                     }}
                     onMouseOver={(e) => {
-                      if (!authLoading) e.target.style.backgroundColor = '#5a6fd8'
+                      e.target.style.backgroundColor = '#5a6fd8'
                     }}
                     onMouseOut={(e) => {
-                      if (!authLoading) e.target.style.backgroundColor = '#667eea'
+                      e.target.style.backgroundColor = '#667eea'
                     }}
                   >
-                    {authLoading ? 'Loading...' : '🛒 Add to Cart'}
-                  </button>
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      addToWishlist(product);
-                    }}
-                    disabled={authLoading}
-                    style={{
-                      backgroundColor: authLoading ? '#f8f9fa' : '#fff',
-                      color: authLoading ? '#ccc' : '#667eea',
-                      border: `2px solid ${authLoading ? '#ccc' : '#667eea'}`,
-                      padding: '12px',
-                      borderRadius: '8px',
-                      cursor: authLoading ? 'not-allowed' : 'pointer',
-                      fontSize: '14px',
-                      fontWeight: '500',
-                      transition: 'all 0.3s ease'
-                    }}
-                    onMouseOver={(e) => {
-                      if (!authLoading) {
-                        e.target.style.backgroundColor = '#667eea';
-                        e.target.style.color = 'white';
-                      }
-                    }}
-                    onMouseOut={(e) => {
-                      if (!authLoading) {
-                        e.target.style.backgroundColor = '#fff';
-                        e.target.style.color = '#667eea';
-                      }
-                    }}
-                  >
-                    {authLoading ? 'Loading...' : '❤️ Wishlist'}
-                  </button>
+                    🔍 View Details
+                  </Link>
                 </div>
               </div>
             ))}

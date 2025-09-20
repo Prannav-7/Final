@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useCart } from '../contexts/CartContext';
 import './OrderSuccess.css';
 
 const OrderSuccess = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { refreshCart } = useCart();
   const [orderData, setOrderData] = useState(null);
   
   const orderState = location.state;
@@ -14,8 +16,10 @@ const OrderSuccess = () => {
       navigate('/');
     } else {
       setOrderData(orderState);
+      // Refresh cart to reflect cleared items after successful order
+      refreshCart();
     }
-  }, [orderState, navigate]);
+  }, [orderState, navigate, refreshCart]);
 
   const generateBill = () => {
     const billContent = `

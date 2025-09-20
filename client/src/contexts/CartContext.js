@@ -72,17 +72,30 @@ export const CartProvider = ({ children }) => {
         throw new Error('Please log in to add items to cart');
       }
       
+      console.log('CartContext: Adding to cart - Product:', productId, 'Quantity:', quantity);
       const response = await api.post('/cart/add', { productId, quantity });
       console.log('CartContext: Add to cart API response', response.data);
       
       if (response.data.success) {
         await fetchCart(); // Refresh cart data
         return true;
+      } else {
+        console.error('CartContext: Add to cart failed:', response.data.message);
+        return false;
       }
-      return false;
     } catch (error) {
       console.error('CartContext: Error adding to cart:', error);
-      throw error;
+      
+      // Check if it's an authentication error
+      if (error.response && error.response.status === 401) {
+        console.log('CartContext: Authentication error, user needs to log in again');
+        // Let the error bubble up so the component can handle it
+        throw new Error('Authentication expired. Please log in again.');
+      } else if (error.message && error.message.includes('log in')) {
+        throw error;
+      } else {
+        throw new Error('Failed to add item to cart. Please try again.');
+      }
     }
   };
 

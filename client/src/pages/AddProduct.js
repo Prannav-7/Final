@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Header from '../components/Header';
 import AdminIndicator from '../components/AdminIndicator';
+import { ValidationUtils } from '../utils/validation';
 
 const AddProduct = () => {
   const navigate = useNavigate();
@@ -68,6 +69,42 @@ const AddProduct = () => {
     e.preventDefault();
     setLoading(true);
 
+    // Comprehensive form validation
+    const validationRules = {
+      name: [ValidationUtils.validateProductName],
+      description: [ValidationUtils.validateDescription],
+      category: [ValidationUtils.validateCategory],
+      price: [(value) => ValidationUtils.validatePrice(value, "Selling Price")],
+      stock: [ValidationUtils.validateQuantity],
+      brand: [ValidationUtils.validateBrand],
+      unit: [(value) => ValidationUtils.validateRequired(value, "Unit")]
+    };
+
+    // Add MRP validation if provided
+    if (formData.mrp) {
+      validationRules.mrp = [(value) => ValidationUtils.validatePrice(value, "MRP")];
+    }
+
+    const { isFormValid, errors } = ValidationUtils.validateForm(formData, validationRules);
+    
+    if (!isFormValid) {
+      const errorFields = Object.keys(errors);
+      const errorMessage = `Please fix the following errors:\n${errorFields.map(field => `• ${errors[field]}`).join('\n')}`;
+      alert(errorMessage);
+      setLoading(false);
+      return;
+    }
+
+    // Additional business logic validation
+    const price = parseFloat(formData.price);
+    const mrp = formData.mrp ? parseFloat(formData.mrp) : price;
+    
+    if (mrp < price) {
+      alert('MRP cannot be less than selling price');
+      setLoading(false);
+      return;
+    }
+
     try {
       let imageUrl = `/images/${formData.category.toLowerCase().replace(/[^a-z0-9]/g, '-')}.svg`;
       
@@ -90,18 +127,13 @@ const AddProduct = () => {
       // Prepare form data for submission
       const productData = {
         ...formData,
-        price: parseFloat(formData.price),
-        mrp: formData.mrp ? parseFloat(formData.mrp) : parseFloat(formData.price),
+        price: price,
+        mrp: mrp,
         stock: parseInt(formData.stock),
         specifications: formData.specifications ? JSON.parse(formData.specifications) : {},
         tags: formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag),
         imageUrl: imageUrl
       };
-
-      // If MRP is not provided, set it same as price
-      if (!formData.mrp) {
-        productData.mrp = productData.price;
-      }
 
       const response = await axios.post('http://localhost:5000/api/products', productData);
       

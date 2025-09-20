@@ -4,15 +4,16 @@ import { useNavigate } from 'react-router-dom';
 import api from '../api';
 import Header from '../components/Header';
 import { useAuth } from '../contexts/AuthContext';
+import { ValidationUtils } from '../utils/validation';
 import './Checkout.css';
 
 const Checkout = () => {
   const [cartItems, setCartItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [orderConfirmed, setOrderConfirmed] = useState(false);
-  const [processing, setProcessing] = useState(false);
+  const [orderConfirmed] = useState(false);
+  const [processing] = useState(false);
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
 
   // Customer details state
   const [customerDetails, setCustomerDetails] = useState({
@@ -26,6 +27,9 @@ const Checkout = () => {
     pincode: '',
     landmark: ''
   });
+
+  // Validation errors state
+  const [validationErrors, setValidationErrors] = useState({});
 
   // Order summary state
   const [orderSummary, setOrderSummary] = useState({
@@ -83,17 +87,76 @@ const Checkout = () => {
       ...prev,
       [name]: value
     }));
+
+    // Real-time validation using ValidationUtils
+    let error = '';
+    
+    switch (name) {
+      case 'firstName':
+      case 'lastName':
+        const nameValidation = ValidationUtils.validateName(value, name === 'firstName' ? 'First Name' : 'Last Name');
+        error = nameValidation.isValid ? '' : nameValidation.message;
+        break;
+      case 'email':
+        const emailValidation = ValidationUtils.validateEmail(value);
+        error = emailValidation.isValid ? '' : emailValidation.message;
+        break;
+      case 'phone':
+        const phoneValidation = ValidationUtils.validatePhone(value);
+        error = phoneValidation.isValid ? '' : phoneValidation.message;
+        break;
+      case 'pincode':
+        const pincodeValidation = ValidationUtils.validatePincode(value);
+        error = pincodeValidation.isValid ? '' : pincodeValidation.message;
+        break;
+      case 'address':
+        const addressValidation = ValidationUtils.validateAddress(value, 'Address');
+        error = addressValidation.isValid ? '' : addressValidation.message;
+        break;
+      case 'city':
+        const cityValidation = ValidationUtils.validateCity(value);
+        error = cityValidation.isValid ? '' : cityValidation.message;
+        break;
+      case 'state':
+        const stateValidation = ValidationUtils.validateState(value);
+        error = stateValidation.isValid ? '' : stateValidation.message;
+        break;
+      case 'landmark':
+        // Optional field, no validation needed
+        break;
+      default:
+        break;
+    }
+    
+    setValidationErrors(prev => ({
+      ...prev,
+      [name]: error
+    }));
   };
 
   const handleOrderSubmit = async (e) => {
     e.preventDefault();
     
-    // Validate required fields
-    const requiredFields = ['firstName', 'lastName', 'email', 'phone', 'address', 'city', 'state', 'pincode'];
-    const missingFields = requiredFields.filter(field => !customerDetails[field]);
+    // Validate all required fields using comprehensive validation
+    const validationRules = {
+      firstName: [ValidationUtils.validateName],
+      lastName: [ValidationUtils.validateName],
+      email: [ValidationUtils.validateEmail],
+      phone: [ValidationUtils.validatePhone],
+      address: [(value) => ValidationUtils.validateAddress(value, "Address")],
+      city: [ValidationUtils.validateCity],
+      state: [ValidationUtils.validateState],
+      pincode: [ValidationUtils.validatePincode]
+    };
+
+    const { isFormValid, errors } = ValidationUtils.validateForm(customerDetails, validationRules);
     
-    if (missingFields.length > 0) {
-      alert(`Please fill in all required fields: ${missingFields.join(', ')}`);
+    if (!isFormValid) {
+      setValidationErrors(errors);
+      // Show detailed validation error message
+      const errorFields = Object.keys(errors);
+      const errorMessage = `Please fix the following errors:\n${errorFields.map(field => `• ${errors[field]}`).join('\n')}`;
+      alert(errorMessage);
       return;
     }
 
@@ -229,11 +292,16 @@ const Checkout = () => {
                       style={{
                         width: '100%',
                         padding: '12px',
-                        border: '1px solid #ddd',
+                        border: validationErrors.firstName ? '1px solid #ff6b6b' : '1px solid #ddd',
                         borderRadius: '8px',
                         fontSize: '1rem'
                       }}
                     />
+                    {validationErrors.firstName && (
+                      <p style={{ color: '#ff6b6b', fontSize: '0.8rem', margin: '5px 0 0 0' }}>
+                        {validationErrors.firstName}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>
@@ -248,11 +316,16 @@ const Checkout = () => {
                       style={{
                         width: '100%',
                         padding: '12px',
-                        border: '1px solid #ddd',
+                        border: validationErrors.lastName ? '1px solid #ff6b6b' : '1px solid #ddd',
                         borderRadius: '8px',
                         fontSize: '1rem'
                       }}
                     />
+                    {validationErrors.lastName && (
+                      <p style={{ color: '#ff6b6b', fontSize: '0.8rem', margin: '5px 0 0 0' }}>
+                        {validationErrors.lastName}
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -269,11 +342,16 @@ const Checkout = () => {
                     style={{
                       width: '100%',
                       padding: '12px',
-                      border: '1px solid #ddd',
+                      border: validationErrors.email ? '1px solid #ff6b6b' : '1px solid #ddd',
                       borderRadius: '8px',
                       fontSize: '1rem'
                     }}
                   />
+                  {validationErrors.email && (
+                    <p style={{ color: '#ff6b6b', fontSize: '0.8rem', margin: '5px 0 0 0' }}>
+                      {validationErrors.email}
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -289,11 +367,16 @@ const Checkout = () => {
                     style={{
                       width: '100%',
                       padding: '12px',
-                      border: '1px solid #ddd',
+                      border: validationErrors.phone ? '1px solid #ff6b6b' : '1px solid #ddd',
                       borderRadius: '8px',
                       fontSize: '1rem'
                     }}
                   />
+                  {validationErrors.phone && (
+                    <p style={{ color: '#ff6b6b', fontSize: '0.8rem', margin: '5px 0 0 0' }}>
+                      {validationErrors.phone}
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -309,12 +392,17 @@ const Checkout = () => {
                     style={{
                       width: '100%',
                       padding: '12px',
-                      border: '1px solid #ddd',
+                      border: validationErrors.address ? '1px solid #ff6b6b' : '1px solid #ddd',
                       borderRadius: '8px',
                       fontSize: '1rem',
                       resize: 'vertical'
                     }}
                   />
+                  {validationErrors.address && (
+                    <p style={{ color: '#ff6b6b', fontSize: '0.8rem', margin: '5px 0 0 0' }}>
+                      {validationErrors.address}
+                    </p>
+                  )}
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
@@ -331,11 +419,16 @@ const Checkout = () => {
                       style={{
                         width: '100%',
                         padding: '12px',
-                        border: '1px solid #ddd',
+                        border: validationErrors.city ? '1px solid #ff6b6b' : '1px solid #ddd',
                         borderRadius: '8px',
                         fontSize: '1rem'
                       }}
                     />
+                    {validationErrors.city && (
+                      <p style={{ color: '#ff6b6b', fontSize: '0.8rem', margin: '5px 0 0 0' }}>
+                        {validationErrors.city}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>
@@ -350,11 +443,16 @@ const Checkout = () => {
                       style={{
                         width: '100%',
                         padding: '12px',
-                        border: '1px solid #ddd',
+                        border: validationErrors.state ? '1px solid #ff6b6b' : '1px solid #ddd',
                         borderRadius: '8px',
                         fontSize: '1rem'
                       }}
                     />
+                    {validationErrors.state && (
+                      <p style={{ color: '#ff6b6b', fontSize: '0.8rem', margin: '5px 0 0 0' }}>
+                        {validationErrors.state}
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -372,11 +470,16 @@ const Checkout = () => {
                       style={{
                         width: '100%',
                         padding: '12px',
-                        border: '1px solid #ddd',
+                        border: validationErrors.pincode ? '1px solid #ff6b6b' : '1px solid #ddd',
                         borderRadius: '8px',
                         fontSize: '1rem'
                       }}
                     />
+                    {validationErrors.pincode && (
+                      <p style={{ color: '#ff6b6b', fontSize: '0.8rem', margin: '5px 0 0 0' }}>
+                        {validationErrors.pincode}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>

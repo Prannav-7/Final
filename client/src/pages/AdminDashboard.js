@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import AdminIndicator from '../components/AdminIndicator';
 import SalesDashboard from '../components/SalesDashboard';
+import AnimatedMonthlySalesDashboard from '../components/AnimatedMonthlySalesDashboard';
 import CustomerOrders from '../components/CustomerOrders';
 import { useAdmin } from '../hooks/useAdmin';
 import api from '../api';
@@ -16,7 +17,7 @@ const AdminDashboard = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
-  const [activeTab, setActiveTab] = useState('products'); // products, sales, orders
+  const [activeTab, setActiveTab] = useState('products'); // products, sales, monthly-sales, orders
   const [salesData, setSalesData] = useState(null);
   const [ordersData, setOrdersData] = useState(null);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -202,139 +203,321 @@ const AdminDashboard = () => {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #f8f9ff 0%, #fef7ff 100%)' }}>
+    <div style={{ 
+      minHeight: '100vh', 
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #f5576c 75%, #4facfe 100%)',
+      backgroundSize: '400% 400%',
+      animation: 'gradientShift 15s ease infinite'
+    }}>
+      <style>{`
+        @keyframes gradientShift {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+      `}</style>
       <Header />
       
       {/* Admin Dashboard Header */}
       <div style={{
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: 'rgba(255, 255, 255, 0.15)',
+        backdropFilter: 'blur(30px)',
         color: 'white',
-        padding: '40px 0',
-        textAlign: 'center'
+        padding: '60px 0',
+        textAlign: 'center',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.2)',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+        position: 'relative',
+        overflow: 'hidden'
       }}>
-        <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 20px' }}>
+        <div style={{
+          position: 'absolute',
+          top: '20%',
+          left: '10%',
+          width: '300px',
+          height: '300px',
+          background: 'radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%)',
+          borderRadius: '50%',
+          animation: 'float 6s ease-in-out infinite'
+        }}></div>
+        <div style={{
+          position: 'absolute',
+          bottom: '10%',
+          right: '15%',
+          width: '200px',
+          height: '200px',
+          background: 'radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%)',
+          borderRadius: '50%',
+          animation: 'float 8s ease-in-out infinite reverse'
+        }}></div>
+        
+        <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 20px', position: 'relative', zIndex: 2 }}>
+          <div style={{ 
+            fontSize: '5rem', 
+            marginBottom: '20px',
+            animation: 'bounce 2s ease-in-out infinite'
+          }}>
+            ⚡
+          </div>
           <h1 style={{
-            fontSize: '3rem',
+            fontSize: '4.5rem',
             fontWeight: '900',
-            margin: '0 0 10px 0',
-            textShadow: '0 2px 10px rgba(0,0,0,0.2)'
+            margin: '0 0 20px 0',
+            textShadow: '0 4px 20px rgba(0,0,0,0.3)',
+            background: 'linear-gradient(45deg, #fff, #f0f8ff, #e6f3ff)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            animation: 'shimmer 3s ease-in-out infinite'
           }}>
-            🔧 Admin Dashboard
+            ELECTROSTORE
           </h1>
-          <p style={{
-            fontSize: '1.2rem',
-            opacity: '0.9',
-            margin: 0
+          <h2 style={{
+            fontSize: '2rem',
+            fontWeight: '700',
+            margin: '0 0 15px 0',
+            opacity: '0.95',
+            letterSpacing: '2px',
+            animation: 'fadeInUp 1s ease-out'
           }}>
-            Complete Product Management System
+            Admin Control Center
+          </h2>
+          <p style={{
+            fontSize: '1.4rem',
+            opacity: '0.9',
+            margin: 0,
+            fontWeight: '600',
+            letterSpacing: '1px',
+            animation: 'fadeInUp 1s ease-out 0.3s both'
+          }}>
+            Jaimaaruthi Electrics and Hardware - Advanced Business Intelligence
           </p>
         </div>
+        
+        <style jsx>{`
+          @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(180deg); }
+          }
+          @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-20px); }
+            60% { transform: translateY(-10px); }
+          }
+          @keyframes shimmer {
+            0% { background-position: -200% center; }
+            100% { background-position: 200% center; }
+          }
+          @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+        `}</style>
       </div>
 
       <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '40px 20px' }}>
         {/* Statistics Cards */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-          gap: '20px',
-          marginBottom: '40px'
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          gap: '30px',
+          marginBottom: '50px'
         }}>
           <div style={{
-            background: 'linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%)',
-            color: 'white',
-            padding: '30px',
-            borderRadius: '20px',
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(20px)',
+            color: '#2c3e50',
+            padding: '40px',
+            borderRadius: '25px',
             textAlign: 'center',
-            boxShadow: '0 10px 30px rgba(78, 205, 196, 0.3)'
+            boxShadow: '0 20px 60px rgba(78, 205, 196, 0.2)',
+            border: '1px solid rgba(255, 255, 255, 0.3)',
+            position: 'relative',
+            overflow: 'hidden',
+            transform: 'translateY(0)',
+            transition: 'all 0.4s ease'
+          }}
+          onMouseOver={(e) => {
+            e.currentTarget.style.transform = 'translateY(-10px)';
+            e.currentTarget.style.boxShadow = '0 30px 80px rgba(78, 205, 196, 0.3)';
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 20px 60px rgba(78, 205, 196, 0.2)';
           }}>
-            <div style={{ fontSize: '3rem', marginBottom: '10px' }}>📦</div>
-            <div style={{ fontSize: '2.5rem', fontWeight: '900' }}>{stats.totalProducts}</div>
-            <div style={{ fontSize: '1rem', opacity: '0.9' }}>Total Products</div>
+            <div style={{
+              position: 'absolute',
+              top: '-50%',
+              right: '-50%',
+              width: '200%',
+              height: '200%',
+              background: 'linear-gradient(45deg, transparent, rgba(78, 205, 196, 0.1), transparent)',
+              transform: 'rotate(45deg)',
+              pointerEvents: 'none'
+            }}></div>
+            <div style={{ fontSize: '4rem', marginBottom: '15px', position: 'relative', zIndex: 2 }}>📦</div>
+            <div style={{ fontSize: '3.5rem', fontWeight: '900', marginBottom: '8px', position: 'relative', zIndex: 2 }}>{stats.totalProducts}</div>
+            <div style={{ fontSize: '1.1rem', opacity: '0.8', fontWeight: '600', position: 'relative', zIndex: 2 }}>Total Products</div>
           </div>
 
           <div style={{
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            color: 'white',
-            padding: '30px',
-            borderRadius: '20px',
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(20px)',
+            color: '#2c3e50',
+            padding: '40px',
+            borderRadius: '25px',
             textAlign: 'center',
-            boxShadow: '0 10px 30px rgba(102, 126, 234, 0.3)'
+            boxShadow: '0 20px 60px rgba(102, 126, 234, 0.2)',
+            border: '1px solid rgba(255, 255, 255, 0.3)',
+            position: 'relative',
+            overflow: 'hidden',
+            transform: 'translateY(0)',
+            transition: 'all 0.4s ease'
+          }}
+          onMouseOver={(e) => {
+            e.currentTarget.style.transform = 'translateY(-10px)';
+            e.currentTarget.style.boxShadow = '0 30px 80px rgba(102, 126, 234, 0.3)';
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 20px 60px rgba(102, 126, 234, 0.2)';
           }}>
-            <div style={{ fontSize: '3rem', marginBottom: '10px' }}>💰</div>
-            <div style={{ fontSize: '2.5rem', fontWeight: '900' }}>₹{stats.totalValue.toLocaleString()}</div>
-            <div style={{ fontSize: '1rem', opacity: '0.9' }}>Total Inventory Value</div>
+            <div style={{
+              position: 'absolute',
+              top: '-50%',
+              right: '-50%',
+              width: '200%',
+              height: '200%',
+              background: 'linear-gradient(45deg, transparent, rgba(102, 126, 234, 0.1), transparent)',
+              transform: 'rotate(45deg)',
+              pointerEvents: 'none'
+            }}></div>
+            <div style={{ fontSize: '4rem', marginBottom: '15px', position: 'relative', zIndex: 2 }}>💰</div>
+            <div style={{ fontSize: '3.5rem', fontWeight: '900', marginBottom: '8px', position: 'relative', zIndex: 2 }}>₹{stats.totalValue.toLocaleString()}</div>
+            <div style={{ fontSize: '1.1rem', opacity: '0.8', fontWeight: '600', position: 'relative', zIndex: 2 }}>Total Inventory Value</div>
           </div>
 
           <div style={{
-            background: 'linear-gradient(135deg, #ffd54f 0%, #ffb74d 100%)',
-            color: 'white',
-            padding: '30px',
-            borderRadius: '20px',
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(20px)',
+            color: '#2c3e50',
+            padding: '40px',
+            borderRadius: '25px',
             textAlign: 'center',
-            boxShadow: '0 10px 30px rgba(255, 213, 79, 0.3)'
+            boxShadow: '0 20px 60px rgba(255, 193, 7, 0.2)',
+            border: '1px solid rgba(255, 255, 255, 0.3)',
+            position: 'relative',
+            overflow: 'hidden',
+            transform: 'translateY(0)',
+            transition: 'all 0.4s ease'
+          }}
+          onMouseOver={(e) => {
+            e.currentTarget.style.transform = 'translateY(-10px)';
+            e.currentTarget.style.boxShadow = '0 30px 80px rgba(255, 193, 7, 0.3)';
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 20px 60px rgba(255, 193, 7, 0.2)';
           }}>
-            <div style={{ fontSize: '3rem', marginBottom: '10px' }}>⚠️</div>
-            <div style={{ fontSize: '2.5rem', fontWeight: '900' }}>{stats.lowStock}</div>
-            <div style={{ fontSize: '1rem', opacity: '0.9' }}>Low Stock Items</div>
+            <div style={{
+              position: 'absolute',
+              top: '-50%',
+              right: '-50%',
+              width: '200%',
+              height: '200%',
+              background: 'linear-gradient(45deg, transparent, rgba(255, 193, 7, 0.1), transparent)',
+              transform: 'rotate(45deg)',
+              pointerEvents: 'none'
+            }}></div>
+            <div style={{ fontSize: '4rem', marginBottom: '15px', position: 'relative', zIndex: 2 }}>⚠️</div>
+            <div style={{ fontSize: '3.5rem', fontWeight: '900', marginBottom: '8px', position: 'relative', zIndex: 2 }}>{stats.lowStock}</div>
+            <div style={{ fontSize: '1.1rem', opacity: '0.8', fontWeight: '600', position: 'relative', zIndex: 2 }}>Low Stock Items</div>
           </div>
 
           <div style={{
-            background: 'linear-gradient(135deg, #ff6b6b 0%, #ff8e53 100%)',
-            color: 'white',
-            padding: '30px',
-            borderRadius: '20px',
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(20px)',
+            color: '#2c3e50',
+            padding: '40px',
+            borderRadius: '25px',
             textAlign: 'center',
-            boxShadow: '0 10px 30px rgba(255, 107, 107, 0.3)'
+            boxShadow: '0 20px 60px rgba(255, 107, 107, 0.2)',
+            border: '1px solid rgba(255, 255, 255, 0.3)',
+            position: 'relative',
+            overflow: 'hidden',
+            transform: 'translateY(0)',
+            transition: 'all 0.4s ease'
+          }}
+          onMouseOver={(e) => {
+            e.currentTarget.style.transform = 'translateY(-10px)';
+            e.currentTarget.style.boxShadow = '0 30px 80px rgba(255, 107, 107, 0.3)';
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 20px 60px rgba(255, 107, 107, 0.2)';
           }}>
-            <div style={{ fontSize: '3rem', marginBottom: '10px' }}>🚫</div>
-            <div style={{ fontSize: '2.5rem', fontWeight: '900' }}>{stats.outOfStock}</div>
-            <div style={{ fontSize: '1rem', opacity: '0.9' }}>Out of Stock</div>
+            <div style={{
+              position: 'absolute',
+              top: '-50%',
+              right: '-50%',
+              width: '200%',
+              height: '200%',
+              background: 'linear-gradient(45deg, transparent, rgba(255, 107, 107, 0.1), transparent)',
+              transform: 'rotate(45deg)',
+              pointerEvents: 'none'
+            }}></div>
+            <div style={{ fontSize: '4rem', marginBottom: '15px', position: 'relative', zIndex: 2 }}>🚫</div>
+            <div style={{ fontSize: '3.5rem', fontWeight: '900', marginBottom: '8px', position: 'relative', zIndex: 2 }}>{stats.outOfStock}</div>
+            <div style={{ fontSize: '1.1rem', opacity: '0.8', fontWeight: '600', position: 'relative', zIndex: 2 }}>Out of Stock</div>
           </div>
         </div>
 
         {/* Tab Navigation */}
         <div style={{
-          background: 'rgba(255, 255, 255, 0.9)',
-          backdropFilter: 'blur(20px)',
-          borderRadius: '25px',
-          padding: '20px',
-          marginBottom: '30px',
-          border: '1px solid rgba(255, 255, 255, 0.2)',
-          boxShadow: '0 10px 40px rgba(0,0,0,0.1)'
+          background: 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(30px)',
+          borderRadius: '30px',
+          padding: '25px',
+          marginBottom: '40px',
+          border: '1px solid rgba(255, 255, 255, 0.3)',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.1)'
         }}>
-          <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+          <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', flexWrap: 'wrap' }}>
             {[
-              { id: 'products', label: '📦 Product Management', icon: '📦' },
-              { id: 'sales', label: '📊 Daily Sales Report', icon: '📊' },
-              { id: 'orders', label: '🛍️ Customer Orders', icon: '🛍️' }
+              { id: 'products', label: '📦 Product Management', icon: '📦', gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' },
+              { id: 'sales', label: '📊 Daily Sales Report', icon: '📊', gradient: 'linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%)' },
+              { id: 'monthly-sales', label: '📈 Monthly Analytics', icon: '📈', gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' },
+              { id: 'orders', label: '🛍️ Customer Orders', icon: '🛍️', gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' }
             ].map(tab => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 style={{
-                  background: activeTab === tab.id 
-                    ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-                    : 'transparent',
-                  color: activeTab === tab.id ? 'white' : '#667eea',
-                  border: activeTab === tab.id ? 'none' : '2px solid #667eea',
-                  padding: '12px 25px',
-                  borderRadius: '20px',
+                  background: activeTab === tab.id ? tab.gradient : 'rgba(255, 255, 255, 0.7)',
+                  color: activeTab === tab.id ? 'white' : '#2c3e50',
+                  border: activeTab === tab.id ? 'none' : '2px solid rgba(102, 126, 234, 0.2)',
+                  padding: '15px 30px',
+                  borderRadius: '25px',
                   fontSize: '16px',
-                  fontWeight: '600',
+                  fontWeight: '700',
                   cursor: 'pointer',
-                  transition: 'all 0.3s ease',
-                  boxShadow: activeTab === tab.id 
-                    ? '0 8px 25px rgba(102, 126, 234, 0.3)'
-                    : 'none'
+                  transition: 'all 0.4s ease',
+                  boxShadow: activeTab === tab.id ? '0 15px 40px rgba(0,0,0,0.2)' : '0 8px 25px rgba(0,0,0,0.05)',
+                  transform: activeTab === tab.id ? 'translateY(-3px)' : 'translateY(0)',
+                  backdropFilter: 'blur(10px)'
                 }}
                 onMouseOver={(e) => {
                   if (activeTab !== tab.id) {
                     e.target.style.background = 'rgba(102, 126, 234, 0.1)';
+                    e.target.style.transform = 'translateY(-2px)';
+                    e.target.style.boxShadow = '0 12px 30px rgba(0,0,0,0.1)';
                   }
                 }}
                 onMouseOut={(e) => {
                   if (activeTab !== tab.id) {
-                    e.target.style.background = 'transparent';
+                    e.target.style.background = 'rgba(255, 255, 255, 0.7)';
+                    e.target.style.transform = 'translateY(0)';
+                    e.target.style.boxShadow = '0 8px 25px rgba(0,0,0,0.05)';
                   }
                 }}
               >
@@ -542,6 +725,9 @@ const AdminDashboard = () => {
 
         {/* Sales Tab Content */}
         {activeTab === 'sales' && <SalesDashboard />}
+
+        {/* Monthly Sales Tab Content */}
+        {activeTab === 'monthly-sales' && <AnimatedMonthlySalesDashboard />}
 
         {/* Orders Tab Content */}
         {activeTab === 'orders' && <CustomerOrders />}

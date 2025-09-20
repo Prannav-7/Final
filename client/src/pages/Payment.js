@@ -1,17 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import './Payment.css';
+import { useCart } from '../contexts/CartContext';
+import { ValidationUtils } from '../utils/validation';
+import Header from '../components/Header';
 
 const Payment = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
-  const [paymentMethods, setPaymentMethods] = useState([]);
-  const [selectedMethod, setSelectedMethod] = useState('');
-  const [selectedOption, setSelectedOption] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [processing, setProcessing] = useState(false);
+  const { isAuthenticated, user } = useAuth();
+  const { clearCart } = useCart();
+  const [loading, setLoading] = useState(false);
+  const [currentStep, setCurrentStep] = useState(1);
+  const [paymentMethod, setPaymentMethod] = useState('');
+  const [deliveryAddress, setDeliveryAddress] = useState({
+    name: user?.name || '',
+    mobile: '',
+    pincode: '',
+    locality: '',
+    address: '',
+    city: '',
+    state: '',
+    landmark: '',
+    alternatePhone: ''
+  });
 
   // Get order data from checkout
   const orderData = location.state?.orderData;
@@ -19,787 +31,1373 @@ const Payment = () => {
 
   useEffect(() => {
     if (!orderData) {
-      navigate('/checkout');
+      navigate('/cart');
       return;
     }
-    fetchPaymentMethods();
-    loadRazorpayScript();
-  }, []);
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+  }, [orderData, navigate, isAuthenticated]);
 
-  const loadRazorpayScript = () => {
-    return new Promise((resolve) => {
-      const script = document.createElement('script');
-      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-      script.onload = () => resolve(true);
-      script.onerror = () => resolve(false);
-      document.body.appendChild(script);
-    });
-  };
-
-  const fetchPaymentMethods = async () => {
+  const handlePlaceOrder = async () => {
+    if (!orderData || !paymentMethod || !deliveryAddress.address) return;
+    
+    setLoading(true);
     try {
-      const response = await fetch('http://localhost:5000/api/payment/methods');
-      const data = await response.json();
+      // Handle Razorpay online payment
+      if (paymentMethod === 'razorpay') {
+        await handleRazorpayPayment();
+        return;
+      }
+
+      // Handle other payment methods (COD, UPI, Card)
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          items: orderData.items,
       
-      if (data.success) {
-        setPaymentMethods(data.paymentMethods);
+          customerDetails: {
+            firstName: deliveryAddress.name.split(' ')[0] || '',
+            lastName: deliveryAddress.name.split(' ').slice(1).join(' ') || '',
+            email: user?.email || '',
+            phone: deliveryAddress.mobile,
+            address: deliveryAddress.address,
+            city: deliveryAddress.city,
+            state: deliveryAddress.state,
+            pincode: deliveryAddress.pincode,
+            landmark: deliveryAddress.landmark || ''
+          },
+          orderSummary: orderData.orderSummary || {},
+          paymentDetails: {
+            method: paymentMethod,
+            status: paymentMethod === 'cod' ? 'pending' : 'completed'
+          }
+        })
+      });
+
+      if (response.ok) {
+        const order = await response.json();
+        navigate('/order-success', { 
+          state: { 
+            message: 'Order placed successfully!',
+            orderId: order._id,
+            orderNumber: order.orderNumber || order._id,
+            paymentMethod: paymentMethod === 'cod' ? 'Cash on Delivery' : 
+                          paymentMethod === 'upi' ? 'UPI Payment' : 'Credit/Debit Card',
+            amount: orderTotal,
+            orderData: {
+              items: orderData.items,
+              customerDetails: {
+                firstName: deliveryAddress.name.split(' ')[0] || '',
+                lastName: deliveryAddress.name.split(' ').slice(1).join(' ') || '',
+                email: user?.email || '',
+                phone: deliveryAddress.mobile,
+                address: deliveryAddress.address,
+                city: deliveryAddress.city,
+                state: deliveryAddress.state,
+                pincode: deliveryAddress.pincode,
+                landmark: deliveryAddress.landmark || ''
+              },
+              orderSummary: {
+                subtotal: orderTotal,
+                shipping: 0,
+                tax: 0,
+                total: orderTotal
+              }
+            }
+          }
+        });
+      } else {
+        alert('Failed to place order. Please try again.');
       }
     } catch (error) {
-      console.error('Error fetching payment methods:', error);
+      console.error('Error placing order:', error);
+      alert('Failed to place order. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handlePaymentSelection = (methodId, optionId = '') => {
-    setSelectedMethod(methodId);
-    setSelectedOption(optionId);
-  };
-
-  const processPayment = async () => {
-    if (!selectedMethod) {
-      alert('Please select a payment method');
-      return;
-    }
-
-    setProcessing(true);
-
-    try {
-      if (selectedMethod === 'cod') {
-        await handleCODPayment();
-      } else if (selectedMethod === 'upi') {
-        await handleUPIPayment();
-      } else {
-        await handleRazorpayPayment();
-      }
-    } catch (error) {
-      console.error('Payment error:', error);
-      alert('Payment failed. Please try again.');
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  const handleCODPayment = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      
-      console.log('Processing COD payment with order data:', orderData);
-      console.log('Order total:', orderTotal);
-      
-      // Validate order data
-      if (!orderData || !orderData.items || !orderData.customerDetails || !orderData.orderSummary) {
-        throw new Error('Invalid order data structure');
-      }
-      
-      // Calculate correct total if orderTotal seems incorrect
-      const calculatedTotal = orderData.orderSummary.total || 
-                             (orderData.orderSummary.subtotal + orderData.orderSummary.shipping + orderData.orderSummary.tax) ||
-                             orderTotal;
-      
-      console.log('Using total amount for COD:', calculatedTotal);
-      
-      const response = await fetch('http://localhost:5000/api/payment/verify-cod', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          amount: calculatedTotal,
-          orderData: {
-            ...orderData,
-            // Ensure items have correct structure
-            items: orderData.items.map(item => ({
-              productId: item.productId || item._id,
-              quantity: parseInt(item.quantity) || 1,
-              price: parseFloat(item.price) || 0,
-              name: item.name || item.productId?.name || 'Product'
-            })),
-            // Ensure order summary is properly formatted
-            orderSummary: {
-              subtotal: parseFloat(orderData.orderSummary.subtotal) || 0,
-              shipping: parseFloat(orderData.orderSummary.shipping) || 0,
-              tax: parseFloat(orderData.orderSummary.tax) || 0,
-              total: calculatedTotal,
-              itemCount: parseInt(orderData.orderSummary.itemCount) || orderData.items.length
-            },
-            paymentDetails: {
-              method: 'cod',
-              status: 'pending',
-              selectedOption: 'cash_on_delivery'
-            }
-          }
-        })
-      });
-
-      const result = await response.json();
-      console.log('COD payment result:', result);
-      
-      if (result.success) {
-        // Clear cart
-        await fetch('http://localhost:5000/api/cart/clear', {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-
-        navigate('/order-success', { 
-          state: { 
-            orderId: result.order._id,
-            orderNumber: result.order.orderNumber,
-            paymentMethod: 'Cash on Delivery',
-            amount: calculatedTotal,
-            orderData: orderData
-          } 
-        });
-      } else {
-        throw new Error(result.message || 'COD order creation failed');
-      }
-    } catch (error) {
-      console.error('COD payment error:', error);
-      throw error;
-    }
-  };
-
-  const handleUPIPayment = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      
-      // Create UPI payment order
-      const orderResponse = await fetch('http://localhost:5000/api/payment/create-upi-order', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          amount: orderTotal,
-          currency: 'INR',
-          receipt: `upi_receipt_${Date.now()}`,
-          customer: {
-            name: `${orderData.customerDetails.firstName} ${orderData.customerDetails.lastName}`,
-            email: orderData.customerDetails.email,
-            contact: orderData.customerDetails.phone
-          }
-        })
-      });
-
-      const orderResult = await orderResponse.json();
-      
-      if (!orderResult.success) {
-        throw new Error(orderResult.message || 'Failed to create UPI payment order');
-      }
-
-      // For real UPI payment, redirect to UPI app or show QR code
-      if (orderResult.upi_link) {
-        // Try to open UPI app directly
-        const upiLink = orderResult.upi_link;
-        
-        // Check if we're on mobile device
-        const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        
-        if (isMobile) {
-          // On mobile: Try multiple UPI app links for better compatibility
-          const tryUPIApp = (link) => {
-            return new Promise((resolve) => {
-              const iframe = document.createElement('iframe');
-              iframe.style.display = 'none';
-              iframe.src = link;
-              document.body.appendChild(iframe);
-              
-              setTimeout(() => {
-                document.body.removeChild(iframe);
-                resolve();
-              }, 1000);
-            });
-          };
-
-          // Try GPay first, then PhonePe, then generic UPI
-          try {
-            if (orderResult.gpay_link) {
-              await tryUPIApp(orderResult.gpay_link);
-            } else if (orderResult.phonepe_link) {
-              await tryUPIApp(orderResult.phonepe_link);
-            } else {
-              // Fallback to direct window location change
-              window.location.href = upiLink;
-            }
-          } catch (error) {
-            // If iframe method fails, try direct method
-            window.location.href = upiLink;
-          }
-          
-          // Fallback: Show manual instructions after a delay
-          setTimeout(async () => {
-            const userConfirmed = window.confirm(
-              `If GPay/PhonePe didn't open automatically:\n\n` +
-              `Amount: ₹${orderTotal}\n` +
-              `Pay to: ${orderResult.vpa}\n` +
-              `Merchant: ${orderResult.merchant_name}\n\n` +
-              `Please open your UPI app manually and pay to the above UPI ID.\n\n` +
-              `Click OK after completing payment, or Cancel to try another method.`
-            );
-
-            if (userConfirmed) {
-              try {
-                await handleUPIPaymentVerification(orderResult.order);
-              } catch (error) {
-                console.error('Payment verification error:', error);
-                alert('Payment verification failed. Please try again.');
-                setProcessing(false);
-              }
-            } else {
-              setProcessing(false);
-              return;
-            }
-          }, 3000);
-        } else {
-          // On desktop: Show QR code and manual payment options
-          const paymentModal = document.createElement('div');
-          paymentModal.innerHTML = `
-            <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10000; display: flex; justify-content: center; align-items: center;">
-              <div style="background: white; padding: 30px; border-radius: 10px; text-align: center; max-width: 400px; width: 90%;">
-                <h3 style="margin-bottom: 20px; color: #333;">UPI Payment</h3>
-                <p style="margin-bottom: 15px; color: #666;">Amount: <strong>₹${orderTotal}</strong></p>
-                <p style="margin-bottom: 20px; color: #666;">Pay to: <strong>${orderResult.vpa}</strong></p>
-                
-                <div style="margin-bottom: 20px;">
-                  <p style="margin-bottom: 10px; font-weight: bold;">Quick Pay Options:</p>
-                  <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-bottom: 15px;">
-                    <button onclick="window.open('${orderResult.gpay_link || upiLink}', '_blank')" style="background: #4285f4; color: white; padding: 8px 15px; border: none; border-radius: 20px; cursor: pointer; font-size: 12px;">📱 GPay</button>
-                    <button onclick="window.open('${orderResult.phonepe_link || upiLink}', '_blank')" style="background: #5f259f; color: white; padding: 8px 15px; border: none; border-radius: 20px; cursor: pointer; font-size: 12px;">📱 PhonePe</button>
-                    <button onclick="window.open('${orderResult.paytm_link || upiLink}', '_blank')" style="background: #00baf2; color: white; padding: 8px 15px; border: none; border-radius: 20px; cursor: pointer; font-size: 12px;">📱 Paytm</button>
-                  </div>
-                </div>
-                
-                <div style="margin-bottom: 20px;">
-                  <p style="margin-bottom: 10px; font-weight: bold;">Scan QR Code:</p>
-                  <img src="${orderResult.qr_code_url}" alt="UPI QR Code" style="max-width: 200px; height: auto; border: 1px solid #ddd; padding: 10px;">
-                </div>
-                
-                <div style="margin-bottom: 20px;">
-                  <p style="margin-bottom: 10px; font-weight: bold;">Or copy UPI ID:</p>
-                  <input type="text" value="${orderResult.vpa}" readonly style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; text-align: center; background: #f9f9f9;">
-                </div>
-                
-                <div style="margin-bottom: 20px;">
-                  <p style="font-size: 14px; color: #888;">Open your UPI app (GPay, PhonePe, Paytm) and pay to the above UPI ID</p>
-                </div>
-                
-                <div>
-                  <button onclick="handlePaymentComplete()" style="background: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 5px; margin-right: 10px; cursor: pointer;">Payment Done</button>
-                  <button onclick="handlePaymentCancel()" style="background: #f44336; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">Cancel</button>
-                </div>
-              </div>
-            </div>
-          `;
-          
-          document.body.appendChild(paymentModal);
-          
-          // Add global functions for modal buttons
-          window.handlePaymentComplete = async () => {
-            document.body.removeChild(paymentModal);
-            try {
-              await handleUPIPaymentVerification(orderResult.order);
-            } catch (error) {
-              console.error('Payment verification error:', error);
-              alert('Payment verification failed. Please try again.');
-              setProcessing(false);
-            }
-          };
-          
-          window.handlePaymentCancel = () => {
-            document.body.removeChild(paymentModal);
-            setProcessing(false);
-          };
-        }
-      }
-    } catch (error) {
-      throw error;
-    }
-  };
-
-  const handleUPIPaymentVerification = async (order) => {
-    try {
-      const token = localStorage.getItem('token');
-      
-      console.log('Starting UPI payment verification...');
-      console.log('Order data being sent:', JSON.stringify(orderData, null, 2));
-      console.log('Order total:', orderTotal);
-      console.log('Order data items:', orderData?.items);
-      console.log('Order data summary:', orderData?.orderSummary);
-      
-      // Validate order data before sending
-      if (!orderData || !orderData.items || !orderData.customerDetails || !orderData.orderSummary) {
-        throw new Error('Invalid order data structure');
-      }
-
-      // Calculate correct total if orderTotal seems incorrect
-      const calculatedTotal = orderData.orderSummary.total || 
-                             (orderData.orderSummary.subtotal + orderData.orderSummary.shipping + orderData.orderSummary.tax) ||
-                             orderTotal;
-      
-      console.log('Using total amount:', calculatedTotal);
-      
-      // Show processing modal
-      const processingModal = document.createElement('div');
-      processingModal.innerHTML = `
-        <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10001; display: flex; justify-content: center; align-items: center;">
-          <div style="background: white; padding: 30px; border-radius: 10px; text-align: center; max-width: 400px; width: 90%;">
-            <div style="margin-bottom: 20px;">
-              <div style="width: 50px; height: 50px; border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;"></div>
-              <style>
-                @keyframes spin {
-                  0% { transform: rotate(0deg); }
-                  100% { transform: rotate(360deg); }
-                }
-              </style>
-            </div>
-            <h3 style="margin-bottom: 15px; color: #333;">Verifying Payment...</h3>
-            <p style="color: #666; margin-bottom: 20px;">Please wait while we confirm your payment.</p>
-          </div>
-        </div>
-      `;
-      document.body.appendChild(processingModal);
-      
-      // Verify payment
-      const verifyResponse = await fetch('http://localhost:5000/api/payment/verify-upi', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          orderId: order.id,
-          amount: calculatedTotal,
-          orderData: {
-            ...orderData,
-            // Ensure items have correct structure
-            items: orderData.items.map(item => ({
-              productId: item.productId || item._id,
-              quantity: parseInt(item.quantity) || 1,
-              price: parseFloat(item.price) || 0,
-              name: item.name || item.productId?.name || 'Product'
-            })),
-            // Ensure order summary is properly formatted
-            orderSummary: {
-              subtotal: parseFloat(orderData.orderSummary.subtotal) || 0,
-              shipping: parseFloat(orderData.orderSummary.shipping) || 0,
-              tax: parseFloat(orderData.orderSummary.tax) || 0,
-              total: parseFloat(orderData.orderSummary.total) || calculatedTotal,
-              itemCount: parseInt(orderData.orderSummary.itemCount) || orderData.items.length
-            }
-          }
-        })
-      });
-
-      const result = await verifyResponse.json();
-      console.log('Payment verification result:', result);
-      
-      // Remove processing modal
-      if (document.body.contains(processingModal)) {
-        document.body.removeChild(processingModal);
-      }
-      
-      if (result.success) {
-        // Show success popup with proper details
-        const successModal = document.createElement('div');
-        successModal.innerHTML = `
-          <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10001; display: flex; justify-content: center; align-items: center;">
-            <div style="background: white; padding: 30px; border-radius: 10px; text-align: center; max-width: 500px; width: 90%;">
-              <div style="margin-bottom: 20px;">
-                <div style="width: 60px; height: 60px; border-radius: 50%; background: #4CAF50; margin: 0 auto; display: flex; align-items: center; justify-content: center; margin-bottom: 15px;">
-                  <span style="color: white; font-size: 30px;">✓</span>
-                </div>
-              </div>
-              <h3 style="margin-bottom: 15px; color: #4CAF50;">Payment Successful!</h3>
-              <p style="color: #666; margin-bottom: 10px;"><strong>Amount Paid:</strong> ₹${calculatedTotal.toFixed(2)}</p>
-              <p style="color: #666; margin-bottom: 10px;"><strong>Order Number:</strong> ${result.order.orderNumber}</p>
-              <p style="color: #666; margin-bottom: 10px;"><strong>Payment ID:</strong> ${result.paymentId}</p>
-              <p style="color: #666; margin-bottom: 20px;"><strong>Items:</strong> ${result.order.items?.length || orderData.items.length} item(s)</p>
-              <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0; text-align: left;">
-                <h4 style="margin: 0 0 10px 0; color: #333;">Order Summary:</h4>
-                <p style="margin: 5px 0; color: #666;">Subtotal: ₹${orderData.orderSummary.subtotal}</p>
-                <p style="margin: 5px 0; color: #666;">Tax: ₹${orderData.orderSummary.tax}</p>
-                <p style="margin: 5px 0; color: #666;">Shipping: ₹${orderData.orderSummary.shipping}</p>
-                <hr style="margin: 10px 0;">
-                <p style="margin: 5px 0; font-weight: bold; color: #333;">Total: ₹${orderData.orderSummary.total}</p>
-              </div>
-              <div>
-                <button onclick="handleSuccessClose()" style="background: #4CAF50; color: white; padding: 12px 30px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; margin-right: 10px;">Continue</button>
-                <button onclick="handlePrintBill()" style="background: #2196F3; color: white; padding: 12px 30px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">Print Receipt</button>
-              </div>
-            </div>
-          </div>
-        `;
-        document.body.appendChild(successModal);
-        
-        window.handleSuccessClose = async () => {
-          document.body.removeChild(successModal);
-          
-          // Clear cart
-          try {
-            await fetch('http://localhost:5000/api/cart/clear', {
-              method: 'DELETE',
-              headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-              }
-            });
-          } catch (error) {
-            console.error('Error clearing cart:', error);
-          }
-
-          navigate('/order-success', { 
-            state: { 
-              orderId: result.order._id,
-              orderNumber: result.order.orderNumber,
-              paymentMethod: 'UPI Payment',
-              paymentId: result.paymentId,
-              amount: orderTotal,
-              orderData: orderData
-            } 
-          });
-        };
-
-        window.handlePrintBill = () => {
-          const printWindow = window.open('', '_blank');
-          const billContent = `
-            <!DOCTYPE html>
-            <html>
-            <head>
-              <title>Payment Receipt</title>
-              <style>
-                body { font-family: Arial, sans-serif; margin: 20px; }
-                .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 20px; }
-                .detail { margin: 10px 0; }
-                .total { font-size: 18px; font-weight: bold; border-top: 2px solid #333; padding-top: 10px; margin-top: 20px; }
-                @media print { body { margin: 0; } }
-              </style>
-            </head>
-            <body>
-              <div class="header">
-                <h2>Electric Store</h2>
-                <h3>Payment Receipt</h3>
-              </div>
-              <div class="detail"><strong>Order Number:</strong> ${result.order.orderNumber}</div>
-              <div class="detail"><strong>Payment ID:</strong> ${result.paymentId}</div>
-              <div class="detail"><strong>Payment Method:</strong> UPI Payment</div>
-              <div class="detail"><strong>Date:</strong> ${new Date().toLocaleString()}</div>
-              <div class="detail"><strong>Customer:</strong> ${orderData.customerDetails.firstName} ${orderData.customerDetails.lastName}</div>
-              <div class="detail"><strong>Items:</strong> ${orderData.items.length} item(s)</div>
-              <div class="detail"><strong>Subtotal:</strong> ₹${orderData.orderSummary.subtotal}</div>
-              <div class="detail"><strong>Tax:</strong> ₹${orderData.orderSummary.tax}</div>
-              <div class="detail"><strong>Shipping:</strong> ₹${orderData.orderSummary.shipping}</div>
-              <div class="total">Total Amount: ₹${orderData.orderSummary.total}</div>
-              <div style="margin-top: 30px; text-align: center; color: #666;">
-                <p>Thank you for your purchase!</p>
-              </div>
-            </body>
-            </html>
-          `;
-          printWindow.document.write(billContent);
-          printWindow.document.close();
-          setTimeout(() => {
-            printWindow.print();
-            printWindow.close();
-          }, 500);
-        };
-      } else {
-        throw new Error(result.message);
-      }
-    } catch (error) {
-      console.error('Payment verification error:', error);
-      
-      // Remove any existing modals
-      const modals = document.querySelectorAll('[style*="position: fixed"]');
-      modals.forEach(modal => {
-        if (document.body.contains(modal)) {
-          document.body.removeChild(modal);
-        }
-      });
-      
-      // Show error modal
-      const errorModal = document.createElement('div');
-      errorModal.innerHTML = `
-        <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10001; display: flex; justify-content: center; align-items: center;">
-          <div style="background: white; padding: 30px; border-radius: 10px; text-align: center; max-width: 400px; width: 90%;">
-            <div style="margin-bottom: 20px;">
-              <div style="width: 60px; height: 60px; border-radius: 50%; background: #f44336; margin: 0 auto; display: flex; align-items: center; justify-content: center; margin-bottom: 15px;">
-                <span style="color: white; font-size: 30px;">✗</span>
-              </div>
-            </div>
-            <h3 style="margin-bottom: 15px; color: #f44336;">Payment Verification Failed</h3>
-            <p style="color: #666; margin-bottom: 20px;">${error.message || 'Please try again or contact support.'}</p>
-            <div>
-              <button onclick="handleErrorClose()" style="background: #f44336; color: white; padding: 10px 25px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">Try Again</button>
-            </div>
-          </div>
-        </div>
-      `;
-      document.body.appendChild(errorModal);
-      
-      window.handleErrorClose = () => {
-        document.body.removeChild(errorModal);
-        setProcessing(false);
-      };
-      
-      throw error;
-    }
-  };
-
+  // Enhanced Razorpay Payment Handler with Proper Checkout
   const handleRazorpayPayment = async () => {
     try {
-      const token = localStorage.getItem('token');
+      console.log('🔄 Initiating Razorpay payment process...');
       
-      const orderResponse = await fetch('http://localhost:5000/api/payment/create-order', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          amount: orderTotal,
-          currency: 'INR',
-          receipt: `receipt_${Date.now()}`
-        })
-      });
-
-      const orderResult = await orderResponse.json();
-      
-      if (!orderResult.success) {
-        if (orderResult.setup_required) {
-          alert('Payment system setup required. Please configure Razorpay credentials in the backend.');
-          return;
-        }
-        throw new Error(orderResult.message || 'Failed to create payment order');
+      // Validate order total
+      if (!orderTotal || orderTotal <= 0) {
+        alert('Invalid order amount. Please try again.');
+        setLoading(false);
+        return;
       }
+      
+      const amountInPaise = Math.round(orderTotal * 100);
+      console.log('💰 Amount in paise:', amountInPaise);
+      
+      // Load and initialize Razorpay Checkout
+      await loadRazorpayScript();
+      
+      // Show confirmation before opening Razorpay
+      const confirmPayment = window.confirm(
+        `💳 Razorpay Secure Payment\n\n` +
+        `Amount: ₹${orderTotal.toFixed(2)}\n` +
+        `Store: Jaimaaruthi Electrical Store\n\n` +
+        `✅ Payment Methods Available:\n` +
+        `• Credit/Debit Cards\n` +
+        `• UPI (GPay, PhonePe, Paytm)\n` +
+        `• Net Banking\n` +
+        `• Digital Wallets\n\n` +
+        `� 100% Secure Payment by Razorpay\n\n` +
+        `Click OK to proceed to payment`
+      );
+      
+      if (confirmPayment) {
+        await initiateRazorpayCheckout(amountInPaise);
+      } else {
+        // Show alternative payment options including direct UPI
+        showAlternativePaymentOptions();
+      }
+      
+    } catch (error) {
+      console.error('❌ Error in Razorpay payment:', error);
+      alert(`Payment initialization failed: ${error.message}`);
+      setLoading(false);
+    }
+  };
 
-      // Check if we're in demo mode
-      if (orderResult.demo_mode || orderResult.key_id === 'rzp_test_demo_key') {
-        // Demo mode - simulate successful payment
-        alert('Demo Mode: Simulating payment processing...\nThis will complete in 2 seconds.');
-        setTimeout(async () => {
-          const simulatedResponse = {
-            razorpay_payment_id: `pay_demo_${Date.now()}`,
-            razorpay_order_id: orderResult.order.id,
-            razorpay_signature: 'demo_signature_' + Math.random().toString(36).substr(2, 9)
-          };
-          await verifyPayment(simulatedResponse, orderResult.order);
-        }, 2000); // 2 second delay to simulate processing
+  // Load Razorpay script dynamically
+  const loadRazorpayScript = () => {
+    return new Promise((resolve, reject) => {
+      if (window.Razorpay) {
+        console.log('✅ Razorpay already loaded');
+        resolve();
         return;
       }
 
-      // Real Razorpay checkout (only if valid credentials)
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.async = true;
+      script.onload = () => {
+        console.log('✅ Razorpay script loaded successfully');
+        resolve();
+      };
+      script.onerror = (error) => {
+        console.error('❌ Failed to load Razorpay script:', error);
+        reject(new Error('Failed to load Razorpay payment gateway'));
+      };
+      document.head.appendChild(script);
+    });
+  };
+
+  // Initialize Razorpay Checkout with server-side order creation
+  const initiateRazorpayCheckout = async (amountInPaise) => {
+    try {
+      console.log('🚀 Creating Razorpay order on server...');
+      
+      // Step 1: Create order on server first
+      const orderResponse = await fetch('/api/payment/create-order', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          amount: orderTotal,
+          currency: 'INR',
+          receipt: `order_${Date.now()}`,
+          customerDetails: {
+            name: deliveryAddress.name || 'Customer',
+            email: user?.email || '',
+            phone: deliveryAddress.mobile || ''
+          },
+          items: orderData.items
+        })
+      });
+
+      if (!orderResponse.ok) {
+        const errorData = await orderResponse.json();
+        throw new Error(errorData.message || 'Failed to create order');
+      }
+
+      const orderData_server = await orderResponse.json();
+      console.log('✅ Server order created:', orderData_server);
+
+      // Step 2: Open Razorpay checkout with server-generated order ID
       const options = {
-        key: orderResult.key_id,
-        amount: orderResult.order.amount,
-        currency: orderResult.order.currency,
-        name: 'Electric Store',
-        description: 'Order Payment',
-        image: '/logo192.png', // Your store logo
-        order_id: orderResult.order.id,
-        handler: async function (response) {
-          await verifyPayment(response, orderResult.order);
+        key: orderData_server.key_id, // Use key from server
+        amount: orderData_server.order.amount, // Amount from server (in paise)
+        currency: orderData_server.order.currency,
+        name: 'Jaimaaruthi Electrical Store',
+        description: `Order Payment - ₹${orderTotal.toFixed(2)}`,
+        order_id: orderData_server.order.id, // Server-generated order ID
+        handler: function (response) {
+          console.log('✅ Payment successful:', response);
+          handleRazorpaySuccess(response);
         },
         prefill: {
-          name: `${orderData.customerDetails.firstName} ${orderData.customerDetails.lastName}`,
-          email: orderData.customerDetails.email,
-          contact: orderData.customerDetails.phone
+          name: deliveryAddress.name || 'Customer',
+          email: user?.email || '',
+          contact: deliveryAddress.mobile || ''
         },
         notes: {
-          address: orderData.customerDetails.address
+          address: deliveryAddress.address,
+          order_items: orderData.items?.map(item => `${item.name} (Qty: ${item.quantity})`).join(', ')
         },
         theme: {
-          color: '#3498db'
+          color: '#2874f0'
         },
         modal: {
           ondismiss: function() {
-            setProcessing(false);
-            alert('Payment cancelled by user');
+            console.log('⚠️ Payment window closed by user');
+            setLoading(false);
+            const retry = window.confirm(
+              'Payment was cancelled. Would you like to try again?'
+            );
+            if (retry) {
+              handleRazorpayPayment();
+            }
           }
+        },
+        retry: {
+          enabled: true,
+          max_count: 3
         }
       };
-
-      const razorpay = new window.Razorpay(options);
-      razorpay.on('payment.failed', function (response) {
-        setProcessing(false);
-        alert('Payment failed: ' + response.error.description);
+      
+      const rzp = new window.Razorpay(options);
+      
+      // Handle payment failure
+      rzp.on('payment.failed', function (response) {
+        console.error('❌ Payment failed:', response.error);
+        setLoading(false);
+        
+        const errorMessage = response.error.description || response.error.reason || 'Payment could not be processed';
+        
+        alert(
+          `Payment Failed\n\n` +
+          `Error: ${errorMessage}\n\n` +
+          `Possible reasons:\n` +
+          `• Insufficient balance\n` +
+          `• Card expired or blocked\n` +
+          `• Network connectivity issue\n` +
+          `• Bank server down\n\n` +
+          `Please try again or use a different payment method.`
+        );
+        
+        // Offer retry option
+        const retry = window.confirm('Would you like to try payment again?');
+        if (retry) {
+          setTimeout(() => handleRazorpayPayment(), 1000);
+        }
       });
       
-      razorpay.open();
+      // Open Razorpay checkout
+      console.log('🎯 Opening Razorpay checkout with server order...');
+      rzp.open();
+      
     } catch (error) {
-      throw error;
+      console.error('❌ Error creating order or opening checkout:', error);
+      setLoading(false);
+      
+      alert(
+        `Payment Setup Failed\n\n` +
+        `Error: ${error.message}\n\n` +
+        `Please try again. If the problem persists, contact support.`
+      );
     }
   };
 
-  const verifyPayment = async (paymentResponse, razorpayOrder) => {
+  // Handle successful Razorpay payment
+  const handleRazorpaySuccess = async (paymentResponse) => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/payment/verify', {
+      console.log('🎉 Processing successful payment...', paymentResponse);
+      
+      // Prepare order data for verification and database storage
+      const orderDataForVerification = {
+        items: orderData.items,
+        customerDetails: {
+          firstName: deliveryAddress.name.split(' ')[0] || '',
+          lastName: deliveryAddress.name.split(' ').slice(1).join(' ') || '',
+          email: user?.email || '',
+          phone: deliveryAddress.mobile,
+          address: deliveryAddress.address,
+          city: deliveryAddress.city,
+          state: deliveryAddress.state,
+          pincode: deliveryAddress.pincode,
+          landmark: deliveryAddress.landmark || ''
+        },
+        orderSummary: {
+          subtotal: orderTotal,
+          shipping: 0,
+          tax: 0,
+          total: orderTotal,
+          itemCount: orderData.items?.length || 0
+        }
+      };
+      
+      // Verify payment with server
+      console.log('🔍 Verifying payment with server...');
+      const verifyResponse = await fetch('/api/payment/verify', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
         body: JSON.stringify({
           razorpay_order_id: paymentResponse.razorpay_order_id,
           razorpay_payment_id: paymentResponse.razorpay_payment_id,
           razorpay_signature: paymentResponse.razorpay_signature,
-          orderData: {
-            ...orderData,
-            paymentDetails: {
-              method: selectedMethod,
-              status: 'completed',
-              selectedOption: selectedOption
-            }
+          orderData: orderDataForVerification
+        })
+      });
+
+      if (!verifyResponse.ok) {
+        const errorData = await verifyResponse.json();
+        throw new Error(errorData.message || 'Payment verification failed');
+      }
+
+      const verificationResult = await verifyResponse.json();
+      console.log('✅ Payment verified successfully:', verificationResult);
+
+      // Clear cart after successful payment
+      if (clearCart) {
+        clearCart();
+      }
+
+      // Navigate to success page
+      navigate('/order-success', {
+        state: {
+          message: 'Payment Successful!',
+          orderId: verificationResult.orderId,
+          orderNumber: verificationResult.order?.orderNumber || verificationResult.orderId,
+          paymentMethod: '💳 Razorpay Payment',
+          amount: orderTotal,
+          paymentDetails: {
+            razorpay_payment_id: paymentResponse.razorpay_payment_id,
+            razorpay_order_id: paymentResponse.razorpay_order_id,
+            method: 'razorpay',
+            status: 'completed'
+          },
+          orderData: orderDataForVerification
+        }
+      });
+      
+    } catch (error) {
+      console.error('❌ Error processing successful payment:', error);
+      setLoading(false);
+      
+      alert(
+        `Payment Processing Error\n\n` +
+        `Your payment was successful, but there was an issue processing your order.\n\n` +
+        `Payment ID: ${paymentResponse.razorpay_payment_id}\n\n` +
+        `Please contact support with this Payment ID for assistance.\n` +
+        `We will process your order manually.`
+      );
+    }
+  };
+
+  // Show alternative payment options including direct UPI
+  const showAlternativePaymentOptions = () => {
+    const choice = window.confirm(
+      `💳 Alternative Payment Options\n\n` +
+      `Choose your preferred payment method:\n\n` +
+      `✅ Click "OK" for Direct UPI Payment\n` +
+      `   • Pay directly using UPI ID\n` +
+      `   • Instant transfer with QR code\n` +
+      `   • prannav2511@okhdfcbank\n\n` +
+      `💰 Click "Cancel" for Cash on Delivery\n` +
+      `   • Pay when order is delivered\n` +
+      `   • No advance payment required\n\n` +
+      `Choose your option:`
+    );
+    
+    if (choice) {
+      showDirectUPIPayment();
+    } else {
+      switchToCOD();
+    }
+  };
+
+  // Show direct UPI payment with QR and UPI ID
+  const showDirectUPIPayment = () => {
+    const upiId = 'prannav2511@okhdfcbank';
+    const merchantName = 'Prannav P - Jaimaaruthi Electrical Store';
+    const amount = orderTotal.toFixed(2);
+    
+    // Create UPI payment URL for QR code and deep linking
+    const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(merchantName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(`Order Payment - ₹${amount}`)}`;
+    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(upiUrl)}`;
+    
+    // Create a custom dialog with UPI details
+    const upiDialog = document.createElement('div');
+    upiDialog.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 10000;
+      font-family: Arial, sans-serif;
+    `;
+    
+    upiDialog.innerHTML = `
+      <div style="
+        background: white;
+        padding: 30px;
+        border-radius: 15px;
+        text-align: center;
+        max-width: 400px;
+        width: 90%;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      ">
+        <div style="
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          padding: 15px;
+          border-radius: 10px;
+          margin-bottom: 20px;
+        ">
+          <h2 style="margin: 0; font-size: 24px;">💳 UPI Payment</h2>
+          <p style="margin: 10px 0 0 0; font-size: 18px; font-weight: bold;">₹${amount}</p>
+        </div>
+        
+        <div style="margin: 20px 0;">
+          <img src="${qrCodeUrl}" alt="UPI QR Code" style="
+            width: 200px;
+            height: 200px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            margin: 10px 0;
+          " />
+        </div>
+        
+        <div style="
+          background: #f8f9fa;
+          padding: 15px;
+          border-radius: 10px;
+          margin: 15px 0;
+          border: 1px solid #e9ecef;
+        ">
+          <p style="margin: 5px 0; font-weight: bold; color: #333;">📱 UPI ID:</p>
+          <p style="
+            margin: 5px 0;
+            font-family: monospace;
+            font-size: 16px;
+            color: #0066cc;
+            font-weight: bold;
+          ">${upiId}</p>
+          <p style="margin: 5px 0; font-size: 14px; color: #666;">Karur Vysya Bank 1054</p>
+        </div>
+        
+        <div style="margin: 20px 0; text-align: left;">
+          <p style="margin: 8px 0; font-size: 14px; color: #333;">
+            <strong>📲 How to Pay:</strong>
+          </p>
+          <p style="margin: 5px 0; font-size: 13px; color: #666;">
+            1. Open any UPI app (GPay, PhonePe, Paytm)
+          </p>
+          <p style="margin: 5px 0; font-size: 13px; color: #666;">
+            2. Scan QR code or enter UPI ID
+          </p>
+          <p style="margin: 5px 0; font-size: 13px; color: #666;">
+            3. Verify amount: ₹${amount}
+          </p>
+          <p style="margin: 5px 0; font-size: 13px; color: #666;">
+            4. Complete payment
+          </p>
+        </div>
+        
+        <div style="margin-top: 25px;">
+          <button onclick="window.handleUPIPaymentDone()" style="
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 5px;
+            min-width: 120px;
+          ">✅ Payment Done</button>
+          
+          <button onclick="window.tryUPIApp()" style="
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 5px;
+            min-width: 120px;
+          ">📱 Open UPI App</button>
+          
+          <button onclick="window.closeUPIDialog()" style="
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 5px;
+            min-width: 120px;
+          ">❌ Cancel</button>
+        </div>
+        
+        <p style="
+          margin: 15px 0 0 0;
+          font-size: 12px;
+          color: #888;
+          font-style: italic;
+        ">
+          💡 After payment, click "Payment Done" to confirm your order
+        </p>
+      </div>
+    `;
+    
+    document.body.appendChild(upiDialog);
+    
+    // Add global functions for the dialog
+    window.handleUPIPaymentDone = () => {
+      document.body.removeChild(upiDialog);
+      handleDirectUPIConfirmation();
+    };
+    
+    window.tryUPIApp = () => {
+      // Try to open UPI app on mobile
+      const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      if (isMobile) {
+        window.location.href = upiUrl;
+      } else {
+        alert('UPI apps work best on mobile devices. Please scan the QR code with your phone.');
+      }
+    };
+    
+    window.closeUPIDialog = () => {
+      document.body.removeChild(upiDialog);
+      setLoading(false);
+      // Clean up global functions
+      delete window.handleUPIPaymentDone;
+      delete window.tryUPIApp;
+      delete window.closeUPIDialog;
+    };
+  };
+
+  // Handle UPI payment confirmation
+  const handleDirectUPIConfirmation = async () => {
+    try {
+      console.log('🎉 Processing UPI payment confirmation...');
+      
+      const orderDataForUPI = {
+        items: orderData.items,
+        customerDetails: {
+          firstName: deliveryAddress.name.split(' ')[0] || '',
+          lastName: deliveryAddress.name.split(' ').slice(1).join(' ') || '',
+          email: user?.email || '',
+          phone: deliveryAddress.mobile,
+          address: deliveryAddress.address,
+          city: deliveryAddress.city,
+          state: deliveryAddress.state,
+          pincode: deliveryAddress.pincode,
+          landmark: deliveryAddress.landmark || ''
+        },
+        orderSummary: {
+          subtotal: orderTotal,
+          shipping: 0,
+          tax: 0,
+          total: orderTotal,
+          itemCount: orderData.items?.length || 0
+        }
+      };
+      
+      // Call UPI verification endpoint
+      const response = await fetch('/api/payment/verify-upi', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          orderId: `upi_${Date.now()}`,
+          amount: orderTotal,
+          orderData: orderDataForUPI
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to process UPI payment');
+      }
+
+      const result = await response.json();
+      console.log('✅ UPI payment processed:', result);
+
+      // Clear cart
+      if (clearCart) {
+        clearCart();
+      }
+
+      // Navigate to success page
+      navigate('/order-success', {
+        state: {
+          message: 'UPI Payment Confirmed!',
+          orderId: result.order?._id,
+          orderNumber: result.order?.orderNumber,
+          paymentMethod: '📱 Direct UPI Payment',
+          amount: orderTotal,
+          paymentDetails: {
+            upi_id: 'prannav2511@okhdfcbank',
+            method: 'upi',
+            status: 'completed'
+          },
+          orderData: orderDataForUPI,
+          isPending: true,
+          pendingMessage: `Your UPI payment has been recorded and your order is being processed. 
+          If you completed the payment, your order will be confirmed shortly. 
+          For any issues, please contact support with your order number.`
+        }
+      });
+      
+    } catch (error) {
+      console.error('❌ Error processing UPI payment:', error);
+      alert(`UPI Payment Error: ${error.message}\nPlease contact support if you completed the payment.`);
+    } finally {
+      setLoading(false);
+      // Clean up global functions
+      if (window.handleUPIPaymentDone) delete window.handleUPIPaymentDone;
+      if (window.tryUPIApp) delete window.tryUPIApp;
+      if (window.closeUPIDialog) delete window.closeUPIDialog;
+    }
+  };
+
+  // Switch to Cash on Delivery
+  const switchToCOD = () => {
+    const confirmCOD = window.confirm(
+      `💰 Cash on Delivery\n\n` +
+      `Amount: ₹${orderTotal.toFixed(2)}\n\n` +
+      `✅ Benefits:\n` +
+      `• Pay when order is delivered\n` +
+      `• No advance payment required\n` +
+      `• 100% secure\n\n` +
+      `📦 Your order will be prepared and\n` +
+      `delivered to your address.\n\n` +
+      `Click OK to confirm COD order`
+    );
+    
+    if (confirmCOD) {
+      handleCODPayment();
+    } else {
+      setLoading(false);
+    }
+  };
+
+  // Handle COD payment
+  const handleCODPayment = async () => {
+    try {
+      console.log('💰 Processing COD order...');
+      
+      const orderDataForCOD = {
+        items: orderData.items,
+        customerDetails: {
+          firstName: deliveryAddress.name.split(' ')[0] || '',
+          lastName: deliveryAddress.name.split(' ').slice(1).join(' ') || '',
+          email: user?.email || '',
+          phone: deliveryAddress.mobile,
+          address: deliveryAddress.address,
+          city: deliveryAddress.city,
+          state: deliveryAddress.state,
+          pincode: deliveryAddress.pincode,
+          landmark: deliveryAddress.landmark || ''
+        },
+        orderSummary: {
+          subtotal: orderTotal,
+          shipping: 0,
+          tax: 0,
+          total: orderTotal,
+          itemCount: orderData.items?.length || 0
+        }
+      };
+      
+      const response = await fetch('/api/payment/verify-cod', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          orderId: `cod_${Date.now()}`,
+          orderData: orderDataForCOD
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to place COD order');
+      }
+
+      const result = await response.json();
+      console.log('✅ COD order placed:', result);
+
+      // Clear cart
+      if (clearCart) {
+        clearCart();
+      }
+
+      // Navigate to success page
+      navigate('/order-success', {
+        state: {
+          message: 'COD Order Placed Successfully!',
+          orderId: result.order?._id,
+          orderNumber: result.order?.orderNumber,
+          paymentMethod: '💰 Cash on Delivery',
+          amount: orderTotal,
+          paymentDetails: {
+            method: 'cod',
+            status: 'pending'
+          },
+          orderData: orderDataForCOD
+        }
+      });
+      
+    } catch (error) {
+      console.error('❌ Error placing COD order:', error);
+      alert(`COD Order Error: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+
+  const handlePaymentSuccess = async (orderData) => {
+    try {
+      console.log('✅ Processing successful payment...');
+      
+      // Create order with completed payment status
+      const orderResponse = await fetch('/api/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          items: orderData.items,
+          customerDetails: orderData.customerDetails,
+          orderSummary: orderData.orderSummary,
+          paymentDetails: {
+            method: 'razorpay',
+            status: 'completed',
+            razorpay_order_id: orderData.razorpayOrderId,
+            razorpay_payment_id: orderData.razorpayPaymentId,
+            razorpay_signature: orderData.razorpaySignature,
+            amount: orderData.orderSummary.total,
+            timestamp: orderData.timestamp
           }
         })
       });
 
-      const result = await response.json();
-      
-      if (result.success) {
-        await fetch('http://localhost:5000/api/cart/clear', {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
+      if (orderResponse.ok) {
+        const order = await orderResponse.json();
+        
+        navigate('/order-success', {
+          state: {
+            message: 'Payment completed successfully!',
+            orderId: order._id,
+            orderNumber: order.orderNumber || order._id,
+            paymentMethod: '💳 Online Payment (Razorpay)',
+            amount: orderData.orderSummary.total,
+            orderData: orderData
           }
         });
-
-        navigate('/order-success', { 
-          state: { 
-            orderId: result.orderId,
-            paymentId: paymentResponse.razorpay_payment_id,
-            paymentMethod: getPaymentMethodName()
-          } 
-        });
       } else {
-        throw new Error(result.message);
+        throw new Error('Failed to create order');
       }
     } catch (error) {
-      console.error('Payment verification failed:', error);
-      alert('Payment verification failed. Please contact support.');
+      console.error('❌ Error confirming payment:', error);
+      alert('Payment was successful but order confirmation failed. Please contact support.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const getPaymentMethodName = () => {
-    const method = paymentMethods.find(m => m.id === selectedMethod);
-    if (!method) return 'Online Payment';
+  const handleAddressSubmit = () => {
+    // Comprehensive address validation
+    const validationRules = {
+      name: [ValidationUtils.validateName],
+      mobile: [ValidationUtils.validatePhone],
+      address: [(value) => ValidationUtils.validateAddress(value, "Address")],
+      city: [ValidationUtils.validateCity],
+      state: [ValidationUtils.validateState],
+      pincode: [ValidationUtils.validatePincode]
+    };
+
+    const { isFormValid, errors } = ValidationUtils.validateForm(deliveryAddress, validationRules);
     
-    if (selectedOption) {
-      const option = method.options.find(o => o.id === selectedOption);
-      return option ? option.name : method.name;
+    if (!isFormValid) {
+      const errorFields = Object.keys(errors);
+      const errorMessage = `Please fix the following errors:\n${errorFields.map(field => `• ${errors[field]}`).join('\n')}`;
+      alert(errorMessage);
+      return;
     }
     
-    return method.name;
+    setCurrentStep(2);
   };
 
-  if (loading) {
-    return (
-      <div className="payment-loading">
-        <div className="spinner"></div>
-        <p>Loading payment methods...</p>
-      </div>
-    );
+  if (!orderData) {
+    return <div>Loading...</div>;
   }
 
   return (
-    <div className="payment-container">
-      <div className="payment-header">
-        <h1>
-          <i className="fas fa-credit-card"></i>
-          Choose Payment Method
-        </h1>
-        <div className="order-amount">
-          <span>Total Amount: </span>
-          <span className="amount">₹{orderTotal.toFixed(2)}</span>
+    <div style={{ backgroundColor: '#f1f3f6', minHeight: '100vh' }}>
+      <Header />
+      
+      {/* Progress Steps */}
+      <div style={{
+        backgroundColor: '#fff',
+        padding: '12px 0',
+        borderBottom: '1px solid #e0e0e0'
+      }}>
+        <div style={{
+          maxWidth: '1248px',
+          margin: '0 auto',
+          padding: window.innerWidth <= 768 ? '0 12px' : '0 20px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: window.innerWidth <= 768 ? '16px' : '40px'
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            color: currentStep >= 1 ? '#2874f0' : '#878787'
+          }}>
+            <div style={{
+              width: '24px',
+              height: '24px',
+              borderRadius: '50%',
+              backgroundColor: currentStep >= 1 ? '#2874f0' : '#878787',
+              color: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '12px',
+              fontWeight: 'bold'
+            }}>
+              1
+            </div>
+            <span style={{ fontWeight: '500', fontSize: '14px' }}>DELIVERY ADDRESS</span>
+          </div>
+          
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            color: currentStep >= 2 ? '#2874f0' : '#878787'
+          }}>
+            <div style={{
+              width: '24px',
+              height: '24px',
+              borderRadius: '50%',
+              backgroundColor: currentStep >= 2 ? '#2874f0' : '#878787',
+              color: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '12px',
+              fontWeight: 'bold'
+            }}>
+              2
+            </div>
+            <span style={{ fontWeight: '500', fontSize: '14px' }}>PAYMENT OPTIONS</span>
+          </div>
+          
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            color: currentStep >= 3 ? '#2874f0' : '#878787'
+          }}>
+            <div style={{
+              width: '24px',
+              height: '24px',
+              borderRadius: '50%',
+              backgroundColor: currentStep >= 3 ? '#2874f0' : '#878787',
+              color: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '12px',
+              fontWeight: 'bold'
+            }}>
+              3
+            </div>
+            <span style={{ fontWeight: '500', fontSize: '14px' }}>SUMMARY</span>
+          </div>
         </div>
       </div>
 
-      <div className="secure-notice">
-        <i className="fas fa-shield-alt"></i>
-        <span>Demo Mode - Secure Payment Simulation</span>
-      </div>
-
-      <div className="payment-content">
-        <div className="payment-methods">
-          {paymentMethods.map(method => (
-            <div key={method.id} className="payment-method-section">
-              <div 
-                className={`payment-method ${selectedMethod === method.id ? 'selected' : ''}`}
-                onClick={() => handlePaymentSelection(method.id)}
-              >
-                <div className="method-info">
-                  <span className="method-icon">{method.icon}</span>
-                  <div className="method-details">
-                    <h3>{method.name}</h3>
-                    <p>{method.description}</p>
-                  </div>
+      <div style={{
+        maxWidth: '1248px',
+        margin: '0 auto',
+        padding: window.innerWidth <= 768 ? '12px' : '20px',
+        display: 'grid',
+        gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : '2fr 1fr',
+        gap: window.innerWidth <= 768 ? '12px' : '20px'
+      }}>
+        {/* Left Column */}
+        <div>
+          {/* Step 1: Delivery Address */}
+          {currentStep === 1 && (
+            <div style={{
+              backgroundColor: '#fff',
+              borderRadius: '2px',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
+              marginBottom: '16px'
+            }}>
+              <div style={{
+                padding: '20px 24px',
+                borderBottom: '1px solid #f0f0f0',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px'
+              }}>
+                <div style={{
+                  width: '20px',
+                  height: '20px',
+                  borderRadius: '50%',
+                  backgroundColor: '#2874f0',
+                  color: 'white',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '12px',
+                  fontWeight: 'bold'
+                }}>
+                  1
                 </div>
-                <div className="method-radio">
-                  <input 
-                    type="radio" 
-                    checked={selectedMethod === method.id}
-                    onChange={() => handlePaymentSelection(method.id)}
+                <h2 style={{
+                  fontSize: '18px',
+                  fontWeight: '500',
+                  color: '#212121',
+                  margin: 0
+                }}>
+                  DELIVERY ADDRESS
+                </h2>
+              </div>
+              
+              <div style={{ padding: '24px' }}>
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : '1fr 1fr', 
+                  gap: '16px',
+                  marginBottom: '16px'
+                }}>
+                  <input
+                    type="text"
+                    placeholder="Name*"
+                    value={deliveryAddress.name}
+                    onChange={(e) => setDeliveryAddress({...deliveryAddress, name: e.target.value})}
+                    style={{
+                      padding: '12px 16px',
+                      border: '1px solid #e0e0e0',
+                      borderRadius: '2px',
+                      fontSize: '14px',
+                      outline: 'none'
+                    }}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Mobile No*"
+                    value={deliveryAddress.mobile}
+                    onChange={(e) => setDeliveryAddress({...deliveryAddress, mobile: e.target.value})}
+                    style={{
+                      padding: '12px 16px',
+                      border: '1px solid #e0e0e0',
+                      borderRadius: '2px',
+                      fontSize: '14px',
+                      outline: 'none'
+                    }}
                   />
                 </div>
-              </div>
-
-              {selectedMethod === method.id && method.options.length > 0 && (
-                <div className="payment-options">
-                  {method.options.map(option => (
-                    <div 
-                      key={option.id}
-                      className={`payment-option ${selectedOption === option.id ? 'selected' : ''}`}
-                      onClick={() => setSelectedOption(option.id)}
-                    >
-                      <span className="option-icon">{option.icon}</span>
-                      <span className="option-name">{option.name}</span>
-                      <input 
-                        type="radio" 
-                        checked={selectedOption === option.id}
-                        onChange={() => setSelectedOption(option.id)}
-                      />
-                    </div>
-                  ))}
+                
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : '1fr 2fr', 
+                  gap: '16px',
+                  marginBottom: '16px'
+                }}>
+                  <input
+                    type="text"
+                    placeholder="Pincode*"
+                    value={deliveryAddress.pincode}
+                    onChange={(e) => setDeliveryAddress({...deliveryAddress, pincode: e.target.value})}
+                    style={{
+                      padding: '12px 16px',
+                      border: '1px solid #e0e0e0',
+                      borderRadius: '2px',
+                      fontSize: '14px',
+                      outline: 'none'
+                    }}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Locality*"
+                    value={deliveryAddress.locality}
+                    onChange={(e) => setDeliveryAddress({...deliveryAddress, locality: e.target.value})}
+                    style={{
+                      padding: '12px 16px',
+                      border: '1px solid #e0e0e0',
+                      borderRadius: '2px',
+                      fontSize: '14px',
+                      outline: 'none'
+                    }}
+                  />
                 </div>
-              )}
+                
+                <textarea
+                  placeholder="Address (Area and Street)*"
+                  rows="3"
+                  value={deliveryAddress.address}
+                  onChange={(e) => setDeliveryAddress({...deliveryAddress, address: e.target.value})}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    border: '1px solid #e0e0e0',
+                    borderRadius: '2px',
+                    fontSize: '14px',
+                    outline: 'none',
+                    marginBottom: '16px',
+                    resize: 'vertical',
+                    boxSizing: 'border-box'
+                  }}
+                />
+                
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : '1fr 1fr', 
+                  gap: '16px',
+                  marginBottom: '16px'
+                }}>
+                  <input
+                    type="text"
+                    placeholder="City/District/Town*"
+                    value={deliveryAddress.city}
+                    onChange={(e) => setDeliveryAddress({...deliveryAddress, city: e.target.value})}
+                    style={{
+                      padding: '12px 16px',
+                      border: '1px solid #e0e0e0',
+                      borderRadius: '2px',
+                      fontSize: '14px',
+                      outline: 'none'
+                    }}
+                  />
+                  <input
+                    type="text"
+                    placeholder="State*"
+                    value={deliveryAddress.state}
+                    onChange={(e) => setDeliveryAddress({...deliveryAddress, state: e.target.value})}
+                    style={{
+                      padding: '12px 16px',
+                      border: '1px solid #e0e0e0',
+                      borderRadius: '2px',
+                      fontSize: '14px',
+                      outline: 'none'
+                    }}
+                  />
+                </div>
+                
+                <button
+                  onClick={handleAddressSubmit}
+                  style={{
+                    backgroundColor: '#ff9f00',
+                    color: 'white',
+                    border: 'none',
+                    padding: '12px 24px',
+                    borderRadius: '2px',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    cursor: 'pointer',
+                    marginTop: '16px'
+                  }}
+                >
+                  SAVE AND DELIVER HERE
+                </button>
+              </div>
             </div>
-          ))}
+          )}
+
+          {/* Step 2: Payment Options */}
+          {currentStep === 2 && (
+            <div style={{
+              backgroundColor: '#fff',
+              borderRadius: '2px',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
+              marginBottom: '16px'
+            }}>
+              <div style={{
+                padding: '20px 24px',
+                borderBottom: '1px solid #f0f0f0',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px'
+              }}>
+                <div style={{
+                  width: '20px',
+                  height: '20px',
+                  borderRadius: '50%',
+                  backgroundColor: '#2874f0',
+                  color: 'white',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '12px',
+                  fontWeight: 'bold'
+                }}>
+                  2
+                </div>
+                <h2 style={{
+                  fontSize: '18px',
+                  fontWeight: '500',
+                  color: '#212121',
+                  margin: 0
+                }}>
+                  PAYMENT OPTIONS
+                </h2>
+              </div>
+              
+              <div style={{ padding: '24px' }}>
+                <div style={{ marginBottom: '20px' }}>
+                  {/* Razorpay Online Payment Option */}
+                  <label style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: '16px',
+                    border: paymentMethod === 'razorpay' ? '2px solid #2874f0' : '1px solid #e0e0e0',
+                    borderRadius: '2px',
+                    cursor: 'pointer',
+                    marginBottom: '12px',
+                    background: paymentMethod === 'razorpay' ? '#f8f9fa' : 'transparent'
+                  }}>
+                    <input
+                      type="radio"
+                      value="razorpay"
+                      checked={paymentMethod === 'razorpay'}
+                      onChange={(e) => setPaymentMethod(e.target.value)}
+                      style={{ accentColor: '#2874f0' }}
+                    />
+                    <div>
+                      <div style={{ fontWeight: '500', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        💳 Online Payment
+                        <span style={{ 
+                          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
+                          color: 'white', 
+                          padding: '2px 8px', 
+                          borderRadius: '10px', 
+                          fontSize: '10px', 
+                          fontWeight: 'bold' 
+                        }}>
+                          RECOMMENDED
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#878787' }}>
+                        Secure payments with Cards, UPI, Net Banking & Wallets via Razorpay
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#28a745', marginTop: '4px', fontWeight: '500' }}>
+                        🔒 100% Secure • Instant Processing • All Payment Methods
+                      </div>
+                    </div>
+                  </label>
+
+                  <label style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: '16px',
+                    border: paymentMethod === 'cod' ? '2px solid #2874f0' : '1px solid #e0e0e0',
+                    borderRadius: '2px',
+                    cursor: 'pointer'
+                  }}>
+                    <input
+                      type="radio"
+                      value="cod"
+                      checked={paymentMethod === 'cod'}
+                      onChange={(e) => setPaymentMethod(e.target.value)}
+                      style={{ accentColor: '#2874f0' }}
+                    />
+                    <div>
+                      <div style={{ fontWeight: '500', fontSize: '14px' }}>💵 Cash on Delivery</div>
+                      <div style={{ fontSize: '12px', color: '#878787' }}>Pay digitally with SMS & OTP on delivery</div>
+                    </div>
+                  </label>
+                </div>
+
+                <button
+                  onClick={() => setCurrentStep(3)}
+                  disabled={!paymentMethod}
+                  style={{
+                    backgroundColor: paymentMethod ? '#ff9f00' : '#ccc',
+                    color: 'white',
+                    border: 'none',
+                    padding: '12px 24px',
+                    borderRadius: '2px',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    cursor: paymentMethod ? 'pointer' : 'not-allowed'
+                  }}
+                >
+                  CONTINUE
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 3: Order Summary */}
+          {currentStep === 3 && (
+            <div style={{
+              backgroundColor: '#fff',
+              borderRadius: '2px',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
+              marginBottom: '16px'
+            }}>
+              <div style={{
+                padding: '20px 24px',
+                borderBottom: '1px solid #f0f0f0'
+              }}>
+                <h2 style={{
+                  fontSize: '18px',
+                  fontWeight: '500',
+                  color: '#212121',
+                  margin: 0
+                }}>
+                  ORDER SUMMARY
+                </h2>
+              </div>
+              
+              <div style={{ padding: '24px' }}>
+                <div style={{ marginBottom: '20px' }}>
+                  <h3 style={{ fontSize: '16px', marginBottom: '12px' }}>Delivery Address:</h3>
+                  <div style={{
+                    backgroundColor: '#f8f8f8',
+                    padding: '12px',
+                    borderRadius: '4px',
+                    fontSize: '14px',
+                    lineHeight: '1.5'
+                  }}>
+                    <strong>{deliveryAddress.name}</strong><br/>
+                    {deliveryAddress.address}<br/>
+                    {deliveryAddress.locality}, {deliveryAddress.city}<br/>
+                    {deliveryAddress.state} - {deliveryAddress.pincode}<br/>
+                    <strong>Phone:</strong> {deliveryAddress.mobile}
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: '20px' }}>
+                  <h3 style={{ fontSize: '16px', marginBottom: '12px' }}>Payment Method:</h3>
+                  <div style={{ fontSize: '14px', textTransform: 'uppercase', fontWeight: '500' }}>
+                    {paymentMethod === 'cod' ? '💵 Cash on Delivery' : '💳 Online Payment (Razorpay)'}
+                  </div>
+                </div>
+
+                <button
+                  onClick={handlePlaceOrder}
+                  disabled={loading}
+                  style={{
+                    backgroundColor: loading ? '#ccc' : '#ff9f00',
+                    color: 'white',
+                    border: 'none',
+                    padding: '12px 24px',
+                    borderRadius: '2px',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    cursor: loading ? 'not-allowed' : 'pointer',
+                    width: '100%'
+                  }}
+                >
+                  {loading ? 'PLACING ORDER...' : 'PLACE ORDER'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
-        <div className="payment-footer">
-          <button 
-            className="back-btn"
-            onClick={() => navigate('/checkout')}
-            disabled={processing}
-          >
-            <i className="fas fa-arrow-left"></i>
-            Back to Checkout
-          </button>
+        {/* Right Column - Price Details */}
+        <div style={{
+          backgroundColor: '#fff',
+          borderRadius: '2px',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
+          height: 'fit-content',
+          position: window.innerWidth <= 768 ? 'static' : 'sticky',
+          top: '20px'
+        }}>
+          <div style={{
+            padding: '16px 24px',
+            borderBottom: '1px solid #f0f0f0'
+          }}>
+            <h3 style={{
+              fontSize: '18px',
+              fontWeight: '500',
+              color: '#878787',
+              margin: 0
+            }}>
+              PRICE DETAILS
+            </h3>
+          </div>
           
-          <button 
-            className="pay-btn"
-            onClick={processPayment}
-            disabled={!selectedMethod || processing}
-          >
-            {processing ? (
-              <>
-                <div className="btn-spinner"></div>
-                Processing...
-              </>
-            ) : (
-              <>
-                <i className="fas fa-lock"></i>
-                {selectedMethod === 'cod' ? 'Place Order' : `Pay ₹${orderTotal.toFixed(2)}`}
-              </>
-            )}
-          </button>
+          <div style={{ padding: '16px 24px' }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              marginBottom: '12px',
+              fontSize: '14px'
+            }}>
+              <span>Price ({orderData?.items?.length || 0} items)</span>
+              <span>₹{orderTotal?.toLocaleString()}</span>
+            </div>
+            
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              marginBottom: '12px',
+              fontSize: '14px'
+            }}>
+              <span>Delivery Charges</span>
+              <span style={{ color: '#388e3c' }}>FREE</span>
+            </div>
+            
+            <div style={{
+              borderTop: '1px dashed #e0e0e0',
+              paddingTop: '12px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              fontSize: '16px',
+              fontWeight: '500'
+            }}>
+              <span>Total Amount</span>
+              <span>₹{orderTotal?.toLocaleString()}</span>
+            </div>
+            
+            <div style={{
+              color: '#388e3c',
+              fontSize: '14px',
+              fontWeight: '500',
+              marginTop: '8px'
+            }}>
+              You will save ₹0 on this order
+            </div>
+          </div>
         </div>
       </div>
     </div>
