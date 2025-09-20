@@ -45,6 +45,12 @@ const Payment = () => {
     
     setLoading(true);
     try {
+      // Handle Direct UPI Payment
+      if (paymentMethod === 'direct_upi') {
+        showDirectUPIPayment();
+        return;
+      }
+
       // Handle Razorpay online payment
       if (paymentMethod === 'razorpay') {
         await handleRazorpayPayment();
@@ -403,13 +409,13 @@ const Payment = () => {
   // Show alternative payment options including direct UPI
   const showAlternativePaymentOptions = () => {
     const choice = window.confirm(
-      `💳 Alternative Payment Options\n\n` +
+      `� Alternative Payment Options\n\n` +
       `Choose your preferred payment method:\n\n` +
-      `✅ Click "OK" for Direct UPI Payment\n` +
-      `   • Pay directly using UPI ID\n` +
-      `   • Instant transfer with QR code\n` +
-      `   • prannav2511@okhdfcbank\n\n` +
-      `💰 Click "Cancel" for Cash on Delivery\n` +
+      `✅ Click "OK" for Direct Bank Payment\n` +
+      `   • Pay directly to Karur Vysya Bank 1054\n` +
+      `   • UPI ID: prannav2511@okhdfcbank\n` +
+      `   • No processing fees • Instant credit\n\n` +
+      `� Click "Cancel" for Cash on Delivery\n` +
       `   • Pay when order is delivered\n` +
       `   • No advance payment required\n\n` +
       `Choose your option:`
@@ -426,11 +432,12 @@ const Payment = () => {
   const showDirectUPIPayment = () => {
     const upiId = 'prannav2511@okhdfcbank';
     const merchantName = 'Prannav P - Jaimaaruthi Electrical Store';
+    const bankName = 'Karur Vysya Bank 1054';
     const amount = orderTotal.toFixed(2);
     
     // Create UPI payment URL for QR code and deep linking
     const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(merchantName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(`Order Payment - ₹${amount}`)}`;
-    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(upiUrl)}`;
+    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(upiUrl)}`;
     
     // Create a custom dialog with UPI details
     const upiDialog = document.createElement('div');
@@ -459,110 +466,191 @@ const Payment = () => {
         box-shadow: 0 10px 30px rgba(0,0,0,0.3);
       ">
         <div style="
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
           color: white;
-          padding: 15px;
-          border-radius: 10px;
-          margin-bottom: 20px;
+          padding: 20px;
+          border-radius: 15px;
+          margin-bottom: 25px;
+          text-align: center;
         ">
-          <h2 style="margin: 0; font-size: 24px;">💳 UPI Payment</h2>
-          <p style="margin: 10px 0 0 0; font-size: 18px; font-weight: bold;">₹${amount}</p>
+          <h2 style="margin: 0 0 10px 0; font-size: 26px; font-weight: bold;">� Direct Bank Payment</h2>
+          <p style="margin: 5px 0; font-size: 20px; font-weight: bold;">₹${amount}</p>
+          <p style="margin: 5px 0; font-size: 16px; opacity: 0.9;">${bankName}</p>
+          <div style="
+            background: rgba(255,255,255,0.2);
+            padding: 8px 16px;
+            border-radius: 20px;
+            display: inline-block;
+            margin-top: 10px;
+            font-size: 14px;
+            font-weight: bold;
+          ">
+            🔒 Direct to Your Account • No Intermediary
+          </div>
         </div>
         
         <div style="margin: 20px 0;">
-          <img src="${qrCodeUrl}" alt="UPI QR Code" style="
-            width: 200px;
-            height: 200px;
-            border: 2px solid #ddd;
-            border-radius: 10px;
-            margin: 10px 0;
+          <img src="${qrCodeUrl}" alt="Direct UPI Payment QR Code" style="
+            width: 250px;
+            height: 250px;
+            border: 3px solid #28a745;
+            border-radius: 15px;
+            margin: 15px 0;
+            box-shadow: 0 8px 25px rgba(40, 167, 69, 0.3);
           " />
         </div>
         
         <div style="
-          background: #f8f9fa;
-          padding: 15px;
-          border-radius: 10px;
-          margin: 15px 0;
-          border: 1px solid #e9ecef;
+          background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+          padding: 20px;
+          border-radius: 15px;
+          margin: 20px 0;
+          border: 2px solid #28a745;
+          box-shadow: 0 5px 15px rgba(40, 167, 69, 0.2);
         ">
-          <p style="margin: 5px 0; font-weight: bold; color: #333;">📱 UPI ID:</p>
-          <p style="
-            margin: 5px 0;
-            font-family: monospace;
-            font-size: 16px;
-            color: #0066cc;
-            font-weight: bold;
-          ">${upiId}</p>
-          <p style="margin: 5px 0; font-size: 14px; color: #666;">Karur Vysya Bank 1054</p>
+          <div style="text-align: center; margin-bottom: 15px;">
+            <h3 style="margin: 0 0 10px 0; font-size: 18px; color: #28a745; font-weight: bold;">
+              🏦 Direct Bank Transfer Details
+            </h3>
+          </div>
+          
+          <div style="
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+            border-left: 4px solid #28a745;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+          ">
+            <p style="margin: 8px 0; font-weight: bold; color: #333; font-size: 16px;">📱 UPI ID:</p>
+            <p style="
+              margin: 5px 0;
+              font-family: 'Courier New', monospace;
+              font-size: 18px;
+              color: #28a745;
+              font-weight: bold;
+              background: #f8f9fa;
+              padding: 8px 12px;
+              border-radius: 6px;
+              border: 1px solid #e9ecef;
+            ">${upiId}</p>
+          </div>
+          
+          <div style="
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+            border-left: 4px solid #17a2b8;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+          ">
+            <p style="margin: 8px 0; font-weight: bold; color: #333; font-size: 16px;">🏦 Bank Details:</p>
+            <p style="margin: 5px 0; font-size: 16px; color: #17a2b8; font-weight: bold;">${bankName}</p>
+            <p style="margin: 5px 0; font-size: 14px; color: #666;">Account Holder: Prannav P</p>
+          </div>
+          
+          <div style="
+            background: #e8f5e8;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border: 1px solid #28a745;
+          ">
+            <p style="margin: 0; font-size: 14px; color: #155724; font-weight: bold; text-align: center;">
+              💡 Payment goes directly to merchant's bank account
+            </p>
+            <p style="margin: 5px 0 0 0; font-size: 13px; color: #155724; text-align: center;">
+              No third-party processing fees • Instant credit to seller
+            </p>
+          </div>
         </div>
         
-        <div style="margin: 20px 0; text-align: left;">
-          <p style="margin: 8px 0; font-size: 14px; color: #333;">
-            <strong>📲 How to Pay:</strong>
+        <div style="margin: 25px 0; text-align: left; background: #f8f9fa; padding: 15px; border-radius: 10px; border: 1px solid #dee2e6;">
+          <p style="margin: 8px 0; font-size: 16px; color: #333; font-weight: bold;">
+            📲 How to Pay:
           </p>
-          <p style="margin: 5px 0; font-size: 13px; color: #666;">
-            1. Open any UPI app (GPay, PhonePe, Paytm)
-          </p>
-          <p style="margin: 5px 0; font-size: 13px; color: #666;">
-            2. Scan QR code or enter UPI ID
-          </p>
-          <p style="margin: 5px 0; font-size: 13px; color: #666;">
-            3. Verify amount: ₹${amount}
-          </p>
-          <p style="margin: 5px 0; font-size: 13px; color: #666;">
-            4. Complete payment
-          </p>
+          <div style="margin-left: 10px;">
+            <p style="margin: 8px 0; font-size: 14px; color: #555;">
+              <strong>1.</strong> Open any UPI app (GPay, PhonePe, Paytm, etc.)
+            </p>
+            <p style="margin: 8px 0; font-size: 14px; color: #555;">
+              <strong>2.</strong> Scan QR code OR enter UPI ID manually
+            </p>
+            <p style="margin: 8px 0; font-size: 14px; color: #555;">
+              <strong>3.</strong> Verify amount: <span style="color: #28a745; font-weight: bold;">₹${amount}</span>
+            </p>
+            <p style="margin: 8px 0; font-size: 14px; color: #555;">
+              <strong>4.</strong> Complete payment using your UPI PIN
+            </p>
+            <p style="margin: 8px 0; font-size: 14px; color: #555;">
+              <strong>5.</strong> Screenshot payment confirmation for your records
+            </p>
+          </div>
         </div>
         
-        <div style="margin-top: 25px;">
+        <div style="margin-top: 30px; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;">
           <button onclick="window.handleUPIPaymentDone()" style="
-            background: #28a745;
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
             color: white;
             border: none;
-            padding: 12px 25px;
+            padding: 15px 30px;
             border-radius: 25px;
             font-size: 16px;
             font-weight: bold;
             cursor: pointer;
-            margin: 5px;
-            min-width: 120px;
-          ">✅ Payment Done</button>
+            min-width: 160px;
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+            transition: all 0.3s ease;
+          " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(40, 167, 69, 0.4)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(40, 167, 69, 0.3)';">
+            ✅ Payment Completed
+          </button>
           
           <button onclick="window.tryUPIApp()" style="
-            background: #007bff;
+            background: linear-gradient(135deg, #007bff 0%, #6610f2 100%);
             color: white;
             border: none;
-            padding: 12px 25px;
+            padding: 15px 30px;
             border-radius: 25px;
             font-size: 16px;
             font-weight: bold;
             cursor: pointer;
-            margin: 5px;
-            min-width: 120px;
-          ">📱 Open UPI App</button>
+            min-width: 160px;
+            box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
+            transition: all 0.3s ease;
+          " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(0, 123, 255, 0.4)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(0, 123, 255, 0.3)';">
+            📱 Open UPI App
+          </button>
           
           <button onclick="window.closeUPIDialog()" style="
-            background: #6c757d;
+            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
             color: white;
             border: none;
-            padding: 12px 25px;
+            padding: 15px 30px;
             border-radius: 25px;
             font-size: 16px;
             font-weight: bold;
             cursor: pointer;
-            margin: 5px;
-            min-width: 120px;
-          ">❌ Cancel</button>
+            min-width: 160px;
+            box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+            transition: all 0.3s ease;
+          " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(108, 117, 125, 0.4)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(108, 117, 125, 0.3)';">
+            ❌ Cancel
+          </button>
         </div>
         
         <p style="
-          margin: 15px 0 0 0;
-          font-size: 12px;
-          color: #888;
+          margin: 20px 0 0 0;
+          font-size: 13px;
+          color: #666;
           font-style: italic;
+          text-align: center;
+          background: #e8f5e8;
+          padding: 12px;
+          border-radius: 8px;
+          border: 1px solid #d4edda;
         ">
-          💡 After payment, click "Payment Done" to confirm your order
+          💡 <strong>Important:</strong> After completing your UPI payment, click "Payment Completed" to confirm your order.<br/>
+          Your payment goes directly to the merchant's Karur Vysya Bank account.
         </p>
       </div>
     `;
@@ -652,21 +740,22 @@ const Payment = () => {
       // Navigate to success page
       navigate('/order-success', {
         state: {
-          message: 'UPI Payment Confirmed!',
+          message: 'Direct UPI Payment Confirmed!',
           orderId: result.order?._id,
           orderNumber: result.order?.orderNumber,
-          paymentMethod: '📱 Direct UPI Payment',
+          paymentMethod: '� Direct Bank Payment',
           amount: orderTotal,
           paymentDetails: {
             upi_id: 'prannav2511@okhdfcbank',
-            method: 'upi',
+            bank_name: 'Karur Vysya Bank 1054',
+            method: 'direct_upi',
             status: 'completed'
           },
           orderData: orderDataForUPI,
-          isPending: true,
-          pendingMessage: `Your UPI payment has been recorded and your order is being processed. 
-          If you completed the payment, your order will be confirmed shortly. 
-          For any issues, please contact support with your order number.`
+          isPending: false,
+          successMessage: `Your payment has been sent directly to Karur Vysya Bank (Account 1054). 
+          Your order is confirmed and will be processed immediately.
+          UPI ID: prannav2511@okhdfcbank`
         }
       });
       
@@ -1179,6 +1268,77 @@ const Payment = () => {
               
               <div style={{ padding: '24px' }}>
                 <div style={{ marginBottom: '20px' }}>
+                  {/* Direct UPI Payment Option - Primary */}
+                  <label style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: '20px',
+                    border: paymentMethod === 'direct_upi' ? '3px solid #28a745' : '2px solid #e0e0e0',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    marginBottom: '15px',
+                    background: paymentMethod === 'direct_upi' ? 'linear-gradient(135deg, #e8f5e8 0%, #d4edda 100%)' : '#fff',
+                    boxShadow: paymentMethod === 'direct_upi' ? '0 4px 15px rgba(40, 167, 69, 0.2)' : '0 2px 8px rgba(0,0,0,0.1)',
+                    position: 'relative',
+                    overflow: 'hidden'
+                  }}>
+                    <input
+                      type="radio"
+                      value="direct_upi"
+                      checked={paymentMethod === 'direct_upi'}
+                      onChange={(e) => setPaymentMethod(e.target.value)}
+                      style={{ accentColor: '#28a745', transform: 'scale(1.2)' }}
+                    />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ 
+                        fontWeight: 'bold', 
+                        fontSize: '16px', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '10px',
+                        marginBottom: '5px'
+                      }}>
+                        � Direct Bank Payment
+                        <span style={{ 
+                          background: 'linear-gradient(135deg, #28a745 0%, #20c997 100%)', 
+                          color: 'white', 
+                          padding: '3px 10px', 
+                          borderRadius: '12px', 
+                          fontSize: '11px', 
+                          fontWeight: 'bold',
+                          animation: 'pulse 2s infinite'
+                        }}>
+                          INSTANT CREDIT
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '13px', color: '#28a745', marginBottom: '5px', fontWeight: '500' }}>
+                        Pay directly to Karur Vysya Bank 1054 via UPI
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#155724', fontWeight: '500' }}>
+                        🏦 prannav2511@okhdfcbank • 🔒 No intermediary fees • ⚡ Instant transfer
+                      </div>
+                    </div>
+                    {paymentMethod === 'direct_upi' && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '10px',
+                        right: '15px',
+                        background: '#28a745',
+                        color: 'white',
+                        borderRadius: '50%',
+                        width: '24px',
+                        height: '24px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '12px'
+                      }}>
+                        ✓
+                      </div>
+                    )}
+                  </label>
+
                   {/* Razorpay Online Payment Option */}
                   <label style={{
                     display: 'flex',
@@ -1186,10 +1346,11 @@ const Payment = () => {
                     gap: '12px',
                     padding: '16px',
                     border: paymentMethod === 'razorpay' ? '2px solid #2874f0' : '1px solid #e0e0e0',
-                    borderRadius: '2px',
+                    borderRadius: '6px',
                     cursor: 'pointer',
                     marginBottom: '12px',
-                    background: paymentMethod === 'razorpay' ? '#f8f9fa' : 'transparent'
+                    background: paymentMethod === 'razorpay' ? '#f8f9fa' : 'transparent',
+                    opacity: 0.8
                   }}>
                     <input
                       type="radio"
@@ -1200,23 +1361,20 @@ const Payment = () => {
                     />
                     <div>
                       <div style={{ fontWeight: '500', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        💳 Online Payment
+                        💳 Online Payment Gateway
                         <span style={{ 
-                          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
+                          background: '#6c757d', 
                           color: 'white', 
                           padding: '2px 8px', 
                           borderRadius: '10px', 
                           fontSize: '10px', 
                           fontWeight: 'bold' 
                         }}>
-                          RECOMMENDED
+                          VIA GATEWAY
                         </span>
                       </div>
                       <div style={{ fontSize: '12px', color: '#878787' }}>
-                        Secure payments with Cards, UPI, Net Banking & Wallets via Razorpay
-                      </div>
-                      <div style={{ fontSize: '11px', color: '#28a745', marginTop: '4px', fontWeight: '500' }}>
-                        🔒 100% Secure • Instant Processing • All Payment Methods
+                        Cards, UPI, Net Banking via Razorpay (Processing fees may apply)
                       </div>
                     </div>
                   </label>
@@ -1227,8 +1385,9 @@ const Payment = () => {
                     gap: '12px',
                     padding: '16px',
                     border: paymentMethod === 'cod' ? '2px solid #2874f0' : '1px solid #e0e0e0',
-                    borderRadius: '2px',
-                    cursor: 'pointer'
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    opacity: 0.8
                   }}>
                     <input
                       type="radio"

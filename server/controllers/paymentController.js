@@ -210,9 +210,9 @@ const createUPIOrder = async (req, res) => {
   try {
     const { amount, currency = 'INR', receipt, customer } = req.body;
 
-    // Your UPI merchant details from environment variables
-    const merchantUPI = process.env.MERCHANT_UPI_ID || 'electricstore@paytm';
-    const merchantName = process.env.MERCHANT_NAME || 'Electric Store';
+    // Direct UPI payment details - User's actual account
+    const merchantUPI = 'prannav2511@okhdfcbank';
+    const merchantName = 'Prannav P - Jaimaaruthi Electrical Store';
     
     // Create UPI payment link
     const upiAmount = amount.toFixed(2);
@@ -225,6 +225,10 @@ const createUPIOrder = async (req, res) => {
     const gpayLink = `tez://upi/pay?pa=${merchantUPI}&pn=${encodeURIComponent(merchantName)}&am=${upiAmount}&cu=${currency}&tn=${encodeURIComponent(transactionNote)}`;
     const phonepeLink = `phonepe://pay?pa=${merchantUPI}&pn=${encodeURIComponent(merchantName)}&am=${upiAmount}&cu=${currency}&tn=${encodeURIComponent(transactionNote)}`;
     const paytmLink = `paytmmp://upi/pay?pa=${merchantUPI}&pn=${encodeURIComponent(merchantName)}&am=${upiAmount}&cu=${currency}&tn=${encodeURIComponent(transactionNote)}`;
+    
+    // Additional bank information for display
+    const bankName = 'Karur Vysya Bank';
+    const accountInfo = 'Account 1054';
     
     // Create order in database
     const orderData = {
@@ -255,7 +259,10 @@ const createUPIOrder = async (req, res) => {
       paytm_link: paytmLink,
       vpa: merchantUPI,
       merchant_name: merchantName,
-      qr_code_url: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(upiLink)}`
+      bank_name: bankName,
+      account_info: accountInfo,
+      qr_code_url: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(upiLink)}`,
+      message: 'Direct payment to merchant account - Karur Vysya Bank 1054'
     });
   } catch (error) {
     console.error('Error creating UPI order:', error);
@@ -475,23 +482,14 @@ const getPaymentMethods = async (req, res) => {
   try {
     const paymentMethods = [
       {
-        id: 'razorpay',
-        name: 'Online Payment',
-        icon: '💳',
-        description: 'Pay securely with cards, UPI, net banking',
-        options: [
-          { id: 'card', name: 'Credit/Debit Card', icon: '💳' },
-          { id: 'upi', name: 'UPI', icon: '📱' },
-          { id: 'netbanking', name: 'Net Banking', icon: '🏦' },
-          { id: 'wallet', name: 'Wallets', icon: '💰' }
-        ],
-        paymentLink: process.env.RAZORPAY_PAYMENT_LINK
-      },
-      {
-        id: 'upi',
-        name: 'Direct UPI',
+        id: 'direct_upi',
+        name: 'Direct UPI Payment',
         icon: '📱',
-        description: 'Pay using any UPI app directly',
+        description: 'Pay directly to Karur Vysya Bank 1054 via UPI',
+        primary: true,
+        upi_id: 'prannav2511@okhdfcbank',
+        bank_name: 'Karur Vysya Bank',
+        account_info: 'Account 1054',
         options: [
           { id: 'gpay', name: 'Google Pay', icon: '🟢' },
           { id: 'phonepe', name: 'PhonePe', icon: '🟣' },
@@ -499,6 +497,19 @@ const getPaymentMethods = async (req, res) => {
           { id: 'bhim', name: 'BHIM UPI', icon: '🟠' },
           { id: 'other_upi', name: 'Other UPI Apps', icon: '📱' }
         ]
+      },
+      {
+        id: 'razorpay',
+        name: 'Online Payment',
+        icon: '💳',
+        description: 'Pay securely with cards, UPI, net banking (via gateway)',
+        options: [
+          { id: 'card', name: 'Credit/Debit Card', icon: '💳' },
+          { id: 'upi', name: 'UPI', icon: '📱' },
+          { id: 'netbanking', name: 'Net Banking', icon: '🏦' },
+          { id: 'wallet', name: 'Wallets', icon: '💰' }
+        ],
+        paymentLink: process.env.RAZORPAY_PAYMENT_LINK
       },
       {
         id: 'cod',
