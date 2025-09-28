@@ -7,6 +7,7 @@ import SalesAnalytics from '../components/SalesAnalytics';
 import CustomerOrders from '../components/CustomerOrders';
 import { useAdmin } from '../hooks/useAdmin';
 import api from '../api';
+import PDFReportGenerator from '../utils/pdfReportGenerator';
 import './ProfessionalAdmin.css';
 
 const NewAdminDashboard = () => {
@@ -121,6 +122,31 @@ const NewAdminDashboard = () => {
     } catch (error) {
       console.error('Error updating product:', error);
       alert(`❌ Failed to update product: ${error.response?.data?.message || error.message}`);
+    }
+  };
+
+  // PDF Report Generation Functions
+  const handleMonthlyReport = async () => {
+    try {
+      const success = await PDFReportGenerator.generateMonthlyReport();
+      if (success) {
+        alert('✅ Monthly report generated and downloaded successfully!');
+      }
+    } catch (error) {
+      console.error('Error generating monthly report:', error);
+      alert('❌ Failed to generate monthly report. Please try again.');
+    }
+  };
+
+  const handleYearlyReport = async () => {
+    try {
+      const success = await PDFReportGenerator.generateYearlyReport();
+      if (success) {
+        alert('✅ Yearly report generated and downloaded successfully!');
+      }
+    } catch (error) {
+      console.error('Error generating yearly report:', error);
+      alert('❌ Failed to generate yearly report. Please try again.');
     }
   };
 
@@ -337,28 +363,36 @@ const NewAdminDashboard = () => {
                 { id: 'analytics', label: 'Sales Analytics', icon: '📊' },
                 { id: 'sales', label: 'Daily Sales Report', icon: '📈' },
                 { id: 'orders', label: 'Customer Orders', icon: '🛍️' },
-                { id: 'reports', label: 'Advanced Reports', icon: '📋', action: () => navigate('/sales-report') }
+                { id: 'reports', label: 'Advanced Reports', icon: '📋', action: () => navigate('/sales-report') },
+                { id: 'monthly-pdf', label: 'Monthly PDF Report', icon: '📄', action: handleMonthlyReport, isPdfButton: true },
+                { id: 'yearly-pdf', label: 'Yearly PDF Report', icon: '📊', action: handleYearlyReport, isPdfButton: true }
               ].map(tab => (
                 <button
                   key={tab.id}
                   onClick={() => tab.action ? tab.action() : setActiveTab(tab.id)}
                   style={{
-                    background: activeTab === tab.id 
-                      ? 'linear-gradient(135deg, #ffd700 0%, #ff8c00 100%)'
-                      : 'rgba(255, 255, 255, 0.05)',
-                    color: activeTab === tab.id ? '#1a202c' : '#f7fafc',
-                    border: activeTab === tab.id 
-                      ? 'none' 
-                      : '1px solid rgba(255, 255, 255, 0.2)',
+                    background: tab.isPdfButton
+                      ? 'linear-gradient(135deg, #28a745 0%, #20c997 100%)'
+                      : activeTab === tab.id 
+                        ? 'linear-gradient(135deg, #ffd700 0%, #ff8c00 100%)'
+                        : 'rgba(255, 255, 255, 0.05)',
+                    color: tab.isPdfButton || activeTab === tab.id ? '#fff' : '#f7fafc',
+                    border: tab.isPdfButton
+                      ? 'none'
+                      : activeTab === tab.id 
+                        ? 'none' 
+                        : '1px solid rgba(255, 255, 255, 0.2)',
                     padding: '15px 30px',
                     borderRadius: '20px',
                     fontSize: '16px',
                     fontWeight: '700',
                     cursor: 'pointer',
                     transition: 'all 0.4s ease',
-                    boxShadow: activeTab === tab.id 
-                      ? '0 10px 30px rgba(255, 215, 0, 0.4)'
-                      : '0 5px 15px rgba(0, 0, 0, 0.2)',
+                    boxShadow: tab.isPdfButton
+                      ? '0 8px 25px rgba(40, 167, 69, 0.4)'
+                      : activeTab === tab.id 
+                        ? '0 10px 30px rgba(255, 215, 0, 0.4)'
+                        : '0 5px 15px rgba(0, 0, 0, 0.2)',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '10px',

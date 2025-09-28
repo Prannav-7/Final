@@ -50,6 +50,32 @@ const CustomerOrders = () => {
     fetchOrdersData();
   }, [fetchOrdersData]);
 
+  // Handle status update
+  const handleStatusUpdate = async (orderId, newStatus) => {
+    try {
+      const response = await api.put(`/orders/admin/update-status/${orderId}`, {
+        status: newStatus
+      });
+
+      if (response.data?.success) {
+        // Update the local order data
+        setOrdersData(prevData => ({
+          ...prevData,
+          orders: prevData.orders.map(order => 
+            order._id === orderId 
+              ? { ...order, status: newStatus }
+              : order
+          )
+        }));
+        
+        alert(`✅ Order status updated to ${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)}`);
+      }
+    } catch (error) {
+      console.error('Error updating order status:', error);
+      alert(`❌ Failed to update order status: ${error.response?.data?.message || error.message}`);
+    }
+  };
+
   // Auto-apply filters when they change
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -404,7 +430,11 @@ const CustomerOrders = () => {
                       </td>
                       
                       <td style={{ padding: '15px 8px', textAlign: 'center', verticalAlign: 'top' }}>
-                        {getStatusBadge(order.status)}
+                        <StatusDropdown 
+                          orderId={order._id}
+                          currentStatus={order.status}
+                          onStatusUpdate={(newStatus) => handleStatusUpdate(order._id, newStatus)}
+                        />
                       </td>
                       
                       <td style={{ padding: '15px 8px', textAlign: 'center', verticalAlign: 'top' }}>
@@ -474,6 +504,114 @@ const CustomerOrders = () => {
               </button>
             </div>
           )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Status Dropdown Component for Admin
+const StatusDropdown = ({ orderId, currentStatus, onStatusUpdate }) => {
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  
+  const statusOptions = [
+    { value: 'pending', label: 'Pending', color: '#ffc107', icon: '⏳' },
+    { value: 'confirmed', label: 'Confirmed', color: '#17a2b8', icon: '✅' },
+    { value: 'processing', label: 'Processing', color: '#007bff', icon: '🔄' },
+    { value: 'shipped', label: 'Shipped', color: '#6f42c1', icon: '🚚' },
+    { value: 'delivered', label: 'Delivered', color: '#28a745', icon: '📦' },
+    { value: 'completed', label: 'Completed', color: '#28a745', icon: '🎉' },
+    { value: 'cancelled', label: 'Cancelled', color: '#dc3545', icon: '❌' }
+  ];
+
+  const currentStatusOption = statusOptions.find(option => option.value === currentStatus) || statusOptions[0];
+
+  const handleStatusChange = (newStatus) => {
+    if (newStatus !== currentStatus) {
+      onStatusUpdate(newStatus);
+    }
+    setIsDropdownOpen(false);
+  };
+
+  return (
+    <div style={{ position: 'relative', display: 'inline-block' }}>
+      <button
+        onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+        style={{
+          background: currentStatusOption.color,
+          color: 'white',
+          border: 'none',
+          padding: '6px 12px',
+          borderRadius: '20px',
+          fontSize: '11px',
+          fontWeight: '600',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px',
+          minWidth: '100px',
+          justifyContent: 'center',
+          transition: 'all 0.2s ease'
+        }}
+        onMouseOver={(e) => {
+          e.target.style.opacity = '0.8';
+        }}
+        onMouseOut={(e) => {
+          e.target.style.opacity = '1';
+        }}
+      >
+        <span>{currentStatusOption.icon}</span>
+        <span>{currentStatusOption.label}</span>
+        <span style={{ fontSize: '8px' }}>▼</span>
+      </button>
+
+      {isDropdownOpen && (
+        <div style={{
+          position: 'absolute',
+          top: '100%',
+          left: '0',
+          background: 'white',
+          border: '1px solid #ddd',
+          borderRadius: '8px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          zIndex: 1000,
+          minWidth: '140px',
+          padding: '4px 0'
+        }}>
+          {statusOptions.map(option => (
+            <button
+              key={option.value}
+              onClick={() => handleStatusChange(option.value)}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                border: 'none',
+                background: option.value === currentStatus ? '#f8f9fa' : 'transparent',
+                color: option.value === currentStatus ? option.color : '#333',
+                fontSize: '11px',
+                fontWeight: option.value === currentStatus ? '600' : '500',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                textAlign: 'left',
+                transition: 'background-color 0.2s ease'
+              }}
+              onMouseOver={(e) => {
+                if (option.value !== currentStatus) {
+                  e.target.style.backgroundColor = '#f8f9fa';
+                }
+              }}
+              onMouseOut={(e) => {
+                if (option.value !== currentStatus) {
+                  e.target.style.backgroundColor = 'transparent';
+                }
+              }}
+            >
+              <span>{option.icon}</span>
+              <span>{option.label}</span>
+            </button>
+          ))}
         </div>
       )}
     </div>

@@ -4,6 +4,8 @@ import { AuthProvider } from './contexts/AuthContext';
 import { CartProvider } from './contexts/CartContext';
 import AdminRoute from './components/AdminRoute';
 import Chatbot from './components/Chatbot';
+import ChatGPTBot from './components/ChatGPTBot';
+import TestChatGPT from './components/TestChatGPT';
 import Home from './pages/Home';
 import ProductList from './pages/ProductList';
 import ProductDetails from './pages/ProductDetails';
@@ -67,8 +69,10 @@ function App() {
               <SalesReport />
             </AdminRoute>
           } />
+          <Route path="/test-chatgpt" element={<TestChatGPT />} />
       </Routes>
       <Chatbot />
+      <ChatGPTBot />
     </Router>
       </CartProvider>
     </AuthProvider>
