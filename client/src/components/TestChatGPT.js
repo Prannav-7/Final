@@ -1,10 +1,11 @@
 import React from 'react';
-import openAIService from '../services/openAIService';
+import FallbackElectricalAssistant from '../services/fallbackElectricalAssistant';
 
 const TestChatGPT = () => {
   const [response, setResponse] = React.useState('');
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState('');
+  const fallbackAssistant = new FallbackElectricalAssistant();
 
   const testChatGPT = async () => {
     setLoading(true);
@@ -12,21 +13,14 @@ const TestChatGPT = () => {
     setResponse('');
 
     try {
-      const result = await openAIService.askElectricalQuestion(
+      const result = fallbackAssistant.askElectricalQuestion(
         "What are the different types of electrical switches available?"
       );
       
-      if (result.success) {
-        setResponse(result.answer);
-      } else {
-        setError(`API Error: ${result.error}`);
-        if (result.answer) {
-          setResponse(result.answer);
-        }
-      }
+      setResponse(`🏪 **Jaimaaruthi Electrical Store Assistant**\n\n${result.answer}`);
     } catch (err) {
       setError(`Error: ${err.message}`);
-      console.error('ChatGPT Test Error:', err);
+      console.error('Electrical Assistant Test Error:', err);
     } finally {
       setLoading(false);
     }
@@ -38,18 +32,11 @@ const TestChatGPT = () => {
     setResponse('');
 
     try {
-      const result = await openAIService.getProductRecommendation(
+      const result = fallbackAssistant.askElectricalQuestion(
         "I need lighting for my living room"
       );
       
-      if (result.success) {
-        setResponse(result.answer);
-      } else {
-        setError(`API Error: ${result.error}`);
-        if (result.answer) {
-          setResponse(result.answer);
-        }
-      }
+      setResponse(`💡 **Product Recommendation**\n\n${result.answer}`);
     } catch (err) {
       setError(`Error: ${err.message}`);
       console.error('Product Recommendation Test Error:', err);
@@ -64,18 +51,11 @@ const TestChatGPT = () => {
     setResponse('');
 
     try {
-      const result = await openAIService.getElectricalSafetyAdvice(
+      const result = fallbackAssistant.askElectricalQuestion(
         "working with electrical wiring"
       );
       
-      if (result.success) {
-        setResponse(result.answer);
-      } else {
-        setError(`API Error: ${result.error}`);
-        if (result.answer) {
-          setResponse(result.answer);
-        }
-      }
+      setResponse(`⚠️ **Safety Advice**\n\n${result.answer}`);
     } catch (err) {
       setError(`Error: ${err.message}`);
       console.error('Safety Advice Test Error:', err);
@@ -90,13 +70,8 @@ const TestChatGPT = () => {
     setResponse('');
 
     try {
-      // Import and test the fallback assistant directly
-      const { default: FallbackElectricalAssistant } = await import('../services/fallbackElectricalAssistant.js');
-      const fallback = new FallbackElectricalAssistant();
-      
-      const result = fallback.askElectricalQuestion("Tell me about ceiling fans");
-      
-      setResponse(`🔄 **Fallback Assistant Test**\n\n${result.answer}`);
+      const result = fallbackAssistant.askElectricalQuestion("Tell me about ceiling fans");
+      setResponse(`🌀 **Ceiling Fan Guide**\n\n${result.answer}`);
     } catch (err) {
       setError(`Fallback Error: ${err.message}`);
       console.error('Fallback Test Error:', err);

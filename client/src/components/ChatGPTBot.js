@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import openAIService from '../services/openAIService';
+import FallbackElectricalAssistant from '../services/fallbackElectricalAssistant';
 import './ChatGPTBot.css';
 
 const ChatGPTBot = () => {
@@ -10,6 +10,7 @@ const ChatGPTBot = () => {
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const fallbackAssistant = new FallbackElectricalAssistant();
 
   // Scroll to bottom when new messages arrive
   const scrollToBottom = () => {
@@ -59,27 +60,18 @@ What electrical question can I help you with today?`,
     setIsTyping(true);
 
     try {
-      // Prepare conversation history for context
-      const conversationHistory = messages.map(msg => ({
-        role: msg.type === 'user' ? 'user' : 'assistant',
-        content: msg.content
-      }));
-
-      // Get response from ChatGPT or fallback assistant
-      const response = await openAIService.askElectricalQuestion(
-        userMessage.content, 
-        conversationHistory
-      );
+      // Get response from fallback electrical assistant
+      const response = fallbackAssistant.askElectricalQuestion(userMessage.content);
 
       // Simulate typing delay for better UX
       setTimeout(() => {
         const botMessage = {
           id: Date.now() + 1,
           type: 'bot',
-          content: response.answer,
+          content: `🏪 **Jaimaaruthi Electrical Store Assistant**\n\n${response.answer}`,
           timestamp: new Date(),
           success: response.success,
-          source: response.source || 'ChatGPT'
+          source: response.source || 'Store Assistant'
         };
 
         setMessages(prev => [...prev, botMessage]);
