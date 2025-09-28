@@ -5,6 +5,7 @@ const {
   getUserOrders,
   getOrderById,
   cancelOrder,
+  updateOrderStatus,
   getDailySalesReport,
   getAllOrdersForAdmin,
   getMonthlySalesSummary,
@@ -22,6 +23,7 @@ router.get('/admin/daily-sales', authMiddleware, getDailySalesReport);
 router.get('/admin/all-orders', authMiddleware, getAllOrdersForAdmin);
 router.get('/admin/monthly-summary', authMiddleware, getMonthlySalesSummary);
 router.get('/admin/sales-report', authMiddleware, getSalesReport);
+router.put('/admin/update-status/:orderId', authMiddleware, updateOrderStatus);
 
 // New analytics routes
 router.get('/admin/sales-analytics', authMiddleware, getSalesAnalytics);

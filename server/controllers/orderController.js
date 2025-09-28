@@ -1098,11 +1098,66 @@ const getSalesReport = async (req, res) => {
   }
 };
 
+// Update order status (Admin only)
+const updateOrderStatus = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { status } = req.body;
+
+    console.log(`Admin updating order ${orderId} status to: ${status}`);
+
+    // Validate status
+    const validStatuses = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'completed', 'cancelled'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid status. Must be one of: ${validStatuses.join(', ')}`
+      });
+    }
+
+    // Find and update the order
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+
+    // Update the status
+    const previousStatus = order.status;
+    order.status = status;
+    await order.save();
+
+    console.log(`Order ${orderId} status updated from ${previousStatus} to ${status}`);
+
+    res.json({
+      success: true,
+      message: `Order status updated to ${status}`,
+      data: {
+        orderId: order._id,
+        previousStatus,
+        newStatus: status,
+        updatedAt: new Date()
+      }
+    });
+
+  } catch (error) {
+    console.error('Update order status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update order status',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   createOrder,
   getUserOrders,
   getOrderById,
   cancelOrder,
+  updateOrderStatus,
   getDailySalesReport,
   getAllOrdersForAdmin,
   getMonthlySalesSummary,
