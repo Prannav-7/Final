@@ -58,7 +58,7 @@ If the above seems risky, create a fresh repository:
 **IMPORTANT**: The exposed API key should be revoked immediately:
 
 1. **Visit**: https://platform.openai.com/api-keys
-2. **Revoke** the compromised key: `sk-proj-l5YA_b24dybH...`
+2. **Revoke** the compromised key (the OpenAI API key that was exposed)
 3. **Create new API key**
 4. **Update environment files** with new key
 
