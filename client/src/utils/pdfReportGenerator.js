@@ -238,6 +238,70 @@ class PDFReportGenerator {
       return false;
     }
   }
+
+  // Generate Daily Sales Report
+  async generateDailyReport() {
+    try {
+      const today = new Date();
+      const todayStr = today.toISOString().split('T')[0];
+      
+      // Fetch today's orders
+      const response = await api.get(`/orders/admin/daily-summary?date=${todayStr}`);
+      const dailyData = response.data.data || {};
+
+      this.initializeDoc();
+      this.addReportTitle('Daily Sales Report', todayStr);
+
+      // Add daily statistics
+      this.doc.setFontSize(12);
+      this.doc.setFont('helvetica', 'bold');
+      this.doc.text('Daily Summary:', 20, 85);
+      
+      this.doc.setFontSize(10);
+      this.doc.setFont('helvetica', 'normal');
+      this.doc.text(`Total Orders: ${dailyData.totalOrders || 0}`, 25, 95);
+      this.doc.text(`Total Revenue: ₹${(dailyData.totalRevenue || 0).toLocaleString()}`, 25, 102);
+      this.doc.text(`Average Order Value: ₹${(dailyData.averageOrderValue || 0).toLocaleString()}`, 25, 109);
+      this.doc.text(`Payment Method Breakdown:`, 25, 116);
+
+      // Payment method breakdown
+      let yPos = 125;
+      if (dailyData.paymentMethods) {
+        Object.entries(dailyData.paymentMethods).forEach(([method, count]) => {
+          this.doc.text(`  ${method}: ${count} orders`, 30, yPos);
+          yPos += 7;
+        });
+      }
+
+      // Add recent orders table if available
+      if (dailyData.orders && dailyData.orders.length > 0) {
+        const tableData = dailyData.orders.slice(0, 10).map(order => [
+          order.orderId || 'N/A',
+          order.customerName || 'Unknown',
+          `₹${(order.totalAmount || 0).toLocaleString()}`,
+          order.paymentMethod || 'N/A',
+          order.status || 'Unknown',
+          new Date(order.createdAt).toLocaleTimeString()
+        ]);
+
+        this.doc.autoTable({
+          head: [['Order ID', 'Customer', 'Amount', 'Payment', 'Status', 'Time']],
+          body: tableData,
+          startY: yPos + 10,
+          theme: 'striped',
+          headStyles: { fillColor: [102, 126, 234] },
+          styles: { fontSize: 8 }
+        });
+      }
+
+      // Download PDF
+      this.doc.save(`Daily_Sales_Report_${todayStr}.pdf`);
+      return true;
+    } catch (error) {
+      console.error('Error generating daily report:', error);
+      throw error;
+    }
+  }
 }
 
 export default new PDFReportGenerator();

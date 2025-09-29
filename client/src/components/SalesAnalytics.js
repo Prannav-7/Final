@@ -10,8 +10,9 @@ import {
   Legend,
   ArcElement,
   PointElement,
+  Filler
 } from 'chart.js';
-import { Bar, Line, Pie } from 'react-chartjs-2';
+import { Bar, Line, Pie, Doughnut } from 'react-chartjs-2';
 import { format } from 'date-fns';
 import './SalesAnalytics.css';
 
@@ -25,7 +26,8 @@ ChartJS.register(
   Tooltip,
   Legend,
   ArcElement,
-  PointElement
+  PointElement,
+  Filler
 );
 
 const SalesAnalytics = () => {

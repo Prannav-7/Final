@@ -17,7 +17,7 @@ const NewAdminDashboard = () => {
   const [editingProduct, setEditingProduct] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
-  const [activeTab, setActiveTab] = useState('analytics');
+  const [activeTab, setActiveTab] = useState('products');
   const [stats, setStats] = useState({
     totalProducts: 0,
     totalValue: 0,
@@ -198,52 +198,64 @@ const NewAdminDashboard = () => {
           <h1 className="admin-title">⚡ Admin Dashboard</h1>
           <p className="admin-subtitle">Jaimaaruthi Electrical & Hardware Store Management</p>
         </div>
-        
-        <div className="admin-container">
-          {/* Professional Navigation */}
-          <div className="admin-nav">
-            <div className="nav-group">
-              {[
-                { id: 'analytics', icon: '📊', label: 'Sales Analytics', color: '#3b82f6' },
-                { id: 'products', icon: '📦', label: 'Products', color: '#10b981' },
-                { id: 'orders', icon: '🛒', label: 'Orders', color: '#f59e0b' },
-                { id: 'sales', icon: '💰', label: 'Sales Dashboard', color: '#ef4444' }
-              ].map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`nav-tab ${activeTab === tab.id ? 'active' : ''}`}
-                  style={{
-                    background: activeTab === tab.id 
-                      ? `linear-gradient(135deg, ${tab.color}, ${tab.color}dd)` 
-                      : 'rgba(255, 255, 255, 0.1)',
-                    borderColor: activeTab === tab.id ? tab.color : 'transparent',
-                    color: activeTab === tab.id ? 'white' : 'var(--text-secondary)',
-                    boxShadow: activeTab === tab.id ? `0 8px 25px ${tab.color}40` : 'none',
-                    transform: activeTab === tab.id ? 'translateY(-2px)' : 'none'
-                  }}
-                >
-                  <span className="nav-icon" style={{ fontSize: '1.2rem' }}>{tab.icon}</span>
-                  <span className="nav-label">{tab.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
 
-          <div className="admin-content">
+        {/* Stats Grid */}
+        <div className="stats-grid">
+          <div className="stat-card">
+            <h2 className="stat-value primary">{stats.totalProducts}</h2>
+            <p className="stat-label">Total Products</p>
+          </div>
+          <div className="stat-card">
+            <h2 className="stat-value success">₹{stats.totalValue.toLocaleString()}</h2>
+            <p className="stat-label">Total Inventory Value</p>
+          </div>
+          <div className="stat-card">
+            <h2 className="stat-value warning">{stats.lowStock}</h2>
+            <p className="stat-label">Low Stock Alert</p>
+          </div>
+          <div className="stat-card">
+            <h2 className="stat-value danger">{stats.outOfStock}</h2>
+            <p className="stat-label">Out of Stock</p>
+          </div>
+        </div>
+
+        {/* Navigation Tabs */}
+        <div className="nav-tabs">
+          {[
+            { id: 'products', label: 'Product Management', icon: '📦' },
+            { id: 'analytics', label: 'Sales Analytics', icon: '📊' },
+            { id: 'orders', label: 'Customer Orders', icon: '🛍️' },
+            { id: 'reports', label: 'Advanced Reports', icon: '📋', action: () => navigate('/sales-report') }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => tab.action ? tab.action() : setActiveTab(tab.id)}
+              disabled={tab.loading}
+              className={`nav-tab ${tab.isPdfButton ? 'pdf-button' : ''} ${activeTab === tab.id ? 'active' : ''}`}
+            >
+              <span className="nav-tab-icon">{tab.icon}</span>
+              {tab.loading ? (
+                <>
+                  <div className="loading-spinner" style={{ display: 'inline-block', marginRight: '0.5rem' }}></div>
+                  Generating...
+                </>
+              ) : (
+                tab.label
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Content Area */}
+        <div className="content-container">
+          <div className="content-card">
             {loading ? (
-              <div className="loading-container">
-                <div className="professional-loader"></div>
+              <div className="loading-overlay">
+                <div className="loading-spinner"></div>
                 <span>Loading dashboard data...</span>
               </div>
             ) : (
               <>
-                {activeTab === 'analytics' && (
-                  <div>
-                    <ProfessionalSalesAnalytics />
-                  </div>
-                )}
-                
                 {activeTab === 'products' && (
                   <div>
                     <div style={{ 
@@ -261,43 +273,44 @@ const NewAdminDashboard = () => {
                         fontWeight: '600'
                       }}>📦 Product Management</h2>
                       <button 
-                        onClick={() => navigate('/add-product')}
+                        className="professional-button"
+                        onClick={() => {/* Add product logic */}}
                         style={{
-                          background: 'linear-gradient(135deg, #10b981, #059669)',
-                          color: 'white',
+                          background: 'var(--success-gradient)',
+                          padding: '0.8rem 1.5rem',
+                          borderRadius: '8px',
                           border: 'none',
-                          padding: '12px 24px',
-                          borderRadius: '12px',
-                          fontSize: '14px',
+                          color: 'white',
                           fontWeight: '600',
                           cursor: 'pointer',
-                          transition: 'all 0.3s ease',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px'
+                          transition: 'all 0.3s ease'
                         }}
                       >
-                        <span>➕</span>
-                        Add Product
+                        + Add New Product
                       </button>
                     </div>
                     
-                    <div style={{
-                      background: 'var(--glass-background)',
+                    <div style={{ 
+                      background: 'rgba(255,255,255,0.05)',
+                      borderRadius: '12px',
                       padding: '2rem',
-                      borderRadius: '20px',
-                      border: '1px solid var(--border-color)',
-                      backdropFilter: 'blur(20px)',
-                      textAlign: 'center'
+                      border: '1px solid rgba(255,255,255,0.1)'
                     }}>
-                      <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🏗️</div>
-                      <h3 style={{ color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
-                        Product Management Under Development
-                      </h3>
-                      <p style={{ color: 'var(--text-secondary)' }}>
-                        Advanced product management features will be available soon.
-                      </p>
+                      <div style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
+                        <div style={{ fontSize: '4rem', marginBottom: '1rem', opacity: 0.5 }}>📋</div>
+                        <h3 style={{ color: 'var(--text-primary)', marginBottom: '0.5rem' }}>Product Management System</h3>
+                        <p>Advanced product management features are being implemented.</p>
+                        <p style={{ fontSize: '0.9rem', opacity: 0.7 }}>
+                          This will include inventory tracking, product categories, pricing management, and stock alerts.
+                        </p>
+                      </div>
                     </div>
+                  </div>
+                )}
+                
+                {activeTab === 'analytics' && (
+                  <div>
+                    <ProfessionalSalesAnalytics />
                   </div>
                 )}
                 
@@ -316,6 +329,7 @@ const NewAdminDashboard = () => {
             )}
           </div>
         </div>
+
       </div>
 
       {/* Admin Mode Indicator */}
