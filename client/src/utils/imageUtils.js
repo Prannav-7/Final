@@ -1,5 +1,7 @@
 // Image utility functions
-const API_BASE_URL = 'http://localhost:5000';
+import { SERVER_BASE_URL } from '../config/constants';
+
+const API_BASE_URL = SERVER_BASE_URL;
 
 /**
  * Get the full image URL for a product

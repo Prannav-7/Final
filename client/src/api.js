@@ -1,8 +1,19 @@
 // src/api.js
 import axios from 'axios';
 
+// Determine the base URL based on environment
+const getBaseURL = () => {
+  // Check if we're in production (on Vercel or other hosting)
+  if (process.env.NODE_ENV === 'production') {
+    // Use the Render server URL for production
+    return process.env.REACT_APP_API_URL || 'https://electro-store-server-8n0d.onrender.com/api';
+  }
+  // Use localhost for development
+  return process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+};
+
 const api = axios.create({
-  baseURL: 'http://localhost:5000/api',
+  baseURL: getBaseURL(),
 });
 
 // Add request interceptor to include auth token

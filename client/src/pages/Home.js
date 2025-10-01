@@ -1,10 +1,11 @@
 // src/pages/Home.js - Modern Sathiya-inspired UI
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api';
 import Header from '../components/Header';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
+import { getImageURL } from '../config/constants';
 
 function Home() {
   const [featuredProducts, setFeaturedProducts] = useState([]);
@@ -37,12 +38,24 @@ function Home() {
   useEffect(() => {
     const fetchFeaturedProducts = async () => {
       try {
-        const response = await axios.get('http://localhost:5000/api/products');
+        const response = await api.get('/products');
         if (response.data.success) {
           setFeaturedProducts(response.data.data.slice(0, 8));
         }
       } catch (error) {
         console.error('Error fetching featured products:', error);
+        
+        // Provide better error handling and fallback
+        if (error.code === 'ERR_NETWORK' || error.code === 'ECONNREFUSED') {
+          console.error('❌ Server connection failed. Please check your internet connection or server status.');
+        } else if (error.response) {
+          console.error('❌ Server responded with error:', error.response.status, error.response.data);
+        } else {
+          console.error('❌ Unexpected error:', error.message);
+        }
+        
+        // Set empty array as fallback
+        setFeaturedProducts([]);
       } finally {
         setLoading(false);
       }
@@ -421,7 +434,7 @@ function Home() {
                     width: '100%',
                     height: '240px',
                     background: '#F8F9FA',
-                    backgroundImage: `url(${product.imageUrl ? `http://localhost:5000${product.imageUrl}` : '/images/default-product.jpg'})`,
+                    backgroundImage: `url(${getImageURL(product.imageUrl)})`,
                     backgroundSize: 'cover',
                     backgroundPosition: 'center',
                     position: 'relative'

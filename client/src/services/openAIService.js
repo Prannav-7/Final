@@ -82,7 +82,7 @@ Store Information:
 
           'Content-Type': 'application/json',
 
-          'Authorization': `Bearer ${this.apiKey}`
+          'Authorization': Bearer ${this.apiKey}
 
         },
 
@@ -96,7 +96,7 @@ Store Information:
 
         const errorData = await response.json();2. Switches & Sockets - Wall switches, power outlets, modular switches    // Store context for electrical questions  constructor() {import FallbackElectricalAssistant from './fallbackElectricalAssistant.js';import FallbackElectricalAssistant from './fallbackElectricalAssistant.js';
 
-        throw new Error(errorData.error?.message || `HTTP error! status: ${response.status}`);
+        throw new Error(errorData.error?.message || HTTP error! status: ${response.status});
 
       }3. Lighting Solutions - LED bulbs, tube lights, decorative lighting
 
