@@ -15,42 +15,33 @@ const checkDbConnection = (req, res, next) => {
     console.log(`DB Check - State: ${dbState} (${stateMap[dbState]}) for ${req.method} ${req.path}`);
   }
   
-  // Always allow requests to proceed - let controllers handle database availability
-  // This prevents blocking the entire API when database is temporarily unavailable
+  // Allow requests when connected
   if (dbState === 1) {
-    // Database connected - normal operation
-    return next();
-  } else if (dbState === 2) {
-    // Database connecting - allow request but log warning
-    console.log(`⚠️ Database connecting - allowing request (controller will handle)`);
-    return next();
-  } else if (dbState === 0) {
-    // Database disconnected - allow request but log warning
-    console.log(`⚠️ Database disconnected - allowing request (fallback data may be used)`);
-    return next();
-  } else {
-    // Database disconnecting - allow request but log warning
-    console.log(`⚠️ Database disconnecting - allowing request (controller will handle)`);
     return next();
   }
-};
 
-// Wait for database connection with timeout
-const waitForDbConnection = async (timeoutMs = 30000) => {
-  const startTime = Date.now();
-  
-  while (Date.now() - startTime < timeoutMs) {
-    if (mongoose.connection.readyState === 1) {
-      console.log('✅ Database connection established');
-      return true;
-    }
-    
-    console.log(`⏳ Waiting for database connection... (${mongoose.connection.readyState})`);
-    await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+  // For connecting state, allow the request to proceed but with a warning
+  // The actual database operations will handle the connection state
+  if (dbState === 2) {
+    console.log(`⚠️ Database connecting - allowing request to proceed`);
+    return next();
   }
-  
-  console.log('❌ Database connection timeout reached');
-  return false;
+
+  // For disconnected state, attempt immediate reconnection before blocking
+  if (dbState === 0) {
+    console.log(`🔄 Database disconnected - attempting immediate reconnection for ${req.method} ${req.path}`);
+    // Note: Reconnection is handled by server.js event handlers
+    // For now, return 503 but with a shorter retry suggestion
+  }
+
+  // Return service unavailable for disconnected/disconnecting states
+  return res.status(503).json({
+    success: false,
+    message: 'Database service temporarily unavailable',
+    error: 'Please try again in a few moments',
+    dbState: stateMap[dbState],
+    timestamp: new Date().toISOString()
+  });
 };
 
-module.exports = { checkDbConnection, waitForDbConnection };
+module.exports = { checkDbConnection };

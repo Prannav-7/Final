@@ -8,26 +8,10 @@ const registerUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    // Check database connection before proceeding
-    const mongoose = require('mongoose');
-    if (mongoose.connection.readyState !== 1) {
-      console.log('❌ Registration failed: Database not connected');
-      return res.status(503).json({ 
-        success: false,
-        message: 'Database service unavailable. Please try again in a moment.',
-        error: 'Database connection not established'
-      });
-    }
-
-    // Check if user already exists with timeout
-    const existingUser = await User.findOne({ email })
-      .maxTimeMS(10000)
-      .lean();
+    // Check if user already exists
+    const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ 
-        success: false,
-        message: 'User already exists' 
-      });
+      return res.status(400).json({ message: 'User already exists' });
     }
 
     // Hash password
@@ -76,40 +60,16 @@ const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Check database connection before proceeding
-    const mongoose = require('mongoose');
-    if (mongoose.connection.readyState !== 1) {
-      console.log('❌ Login failed: Database not connected');
-      console.log('Connection state:', mongoose.connection.readyState);
-      console.log('States: 0=disconnected, 1=connected, 2=connecting, 3=disconnecting');
-      
-      return res.status(503).json({ 
-        success: false,
-        message: 'Database service unavailable. Please try again in a moment.',
-        error: 'Database connection not established',
-        dbState: mongoose.connection.readyState
-      });
-    }
-
-    // Check if user exists with timeout
-    const user = await User.findOne({ email })
-      .maxTimeMS(10000) // 10 second timeout
-      .lean();
-      
+    // Check if user exists
+    const user = await User.findOne({ email });
     if (!user) {
-      return res.status(400).json({ 
-        success: false,
-        message: 'Invalid credentials' 
-      });
+      return res.status(400).json({ message: 'Invalid credentials' });
     }
 
     // Check password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(400).json({ 
-        success: false,
-        message: 'Invalid credentials' 
-      });
+      return res.status(400).json({ message: 'Invalid credentials' });
     }
 
     // Generate JWT token
@@ -119,7 +79,11 @@ const loginUser = async (req, res) => {
       { expiresIn: '24h' }
     );
 
-    console.log('✅ Login successful for user:', user.email);
+    console.log('=== LOGIN TOKEN GENERATION ===');
+    console.log('User ID:', user._id);
+    console.log('JWT Secret used:', process.env.JWT_SECRET || 'fallback_secret');
+    console.log('Generated token:', token.substring(0, 20) + '...');
+    console.log('=== END LOGIN TOKEN GENERATION ===');
 
     res.json({
       success: true,
@@ -132,26 +96,7 @@ const loginUser = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('❌ Login error:', error.message);
-    
-    // Handle specific MongoDB connection errors
-    if (error.message.includes('buffering timed out') || 
-        error.message.includes('Cannot call') ||
-        error.name === 'MongooseError' || 
-        error.name === 'MongoError') {
-      return res.status(503).json({ 
-        success: false,
-        message: 'Database service temporarily unavailable. Please try again.',
-        error: 'Database connection issue',
-        details: error.message
-      });
-    }
-    
-    res.status(500).json({ 
-      success: false,
-      message: 'Server error', 
-      error: error.message
-    });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
