@@ -495,6 +495,67 @@ const getAllOrdersForAdmin = async (req, res) => {
   }
 };
 
+// Get daily summary for PDF report
+const getDailySummary = async (req, res) => {
+  try {
+    const { date } = req.query;
+    const targetDate = date ? new Date(date) : new Date();
+    
+    // Set to start and end of the day
+    const startOfDay = new Date(targetDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    
+    const endOfDay = new Date(targetDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    // Get today's orders
+    const orders = await Order.find({
+      createdAt: { $gte: startOfDay, $lte: endOfDay }
+    }).populate('userId', 'name email').sort({ createdAt: -1 });
+
+    // Calculate statistics
+    const totalOrders = orders.length;
+    const totalRevenue = orders.reduce((sum, order) => sum + order.totalAmount, 0);
+    const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
+    // Payment method breakdown
+    const paymentMethods = {};
+    orders.forEach(order => {
+      const method = order.paymentMethod || 'Unknown';
+      paymentMethods[method] = (paymentMethods[method] || 0) + 1;
+    });
+
+    // Format orders for response
+    const formattedOrders = orders.map(order => ({
+      orderId: order.orderId,
+      customerName: order.userId?.name || 'Guest',
+      totalAmount: order.totalAmount,
+      paymentMethod: order.paymentMethod,
+      status: order.status,
+      createdAt: order.createdAt
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        date: targetDate.toISOString().split('T')[0],
+        totalOrders,
+        totalRevenue,
+        averageOrderValue,
+        paymentMethods,
+        orders: formattedOrders
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching daily summary:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching daily summary',
+      error: error.message
+    });
+  }
+};
+
 // Get monthly sales summary
 const getMonthlySalesSummary = async (req, res) => {
   try {
@@ -615,7 +676,7 @@ const getSalesAnalytics = async (req, res) => {
           _id: {
             $dateToString: { format: "%Y-%m-%d", date: "$createdAt" }
           },
-          revenue: { $sum: "$orderSummary.finalTotal" },
+          revenue: { $sum: "$orderSummary.total" },
           orders: { $sum: 1 },
           customers: { $addToSet: "$userId" }
         }
@@ -644,7 +705,7 @@ const getSalesAnalytics = async (req, res) => {
     const formattedRecentOrders = recentOrders.map(order => ({
       orderId: order.orderId || order._id.toString().slice(-8).toUpperCase(),
       customer: order.userId?.name || 'Unknown Customer',
-      amount: order.orderSummary?.finalTotal || 0,
+      amount: order.orderSummary?.total || 0,
       items: order.items?.length || 0,
       date: order.createdAt.toISOString().split('T')[0]
     }));
@@ -697,7 +758,7 @@ const getMonthlyComparison = async (req, res) => {
           {
             $group: {
               _id: null,
-              revenue: { $sum: "$orderSummary.finalTotal" },
+              revenue: { $sum: "$orderSummary.total" },
               orders: { $sum: 1 }
             }
           }
@@ -760,7 +821,7 @@ const getTopProducts = async (req, res) => {
       { $unwind: "$items" },
       {
         $group: {
-          _id: "$items.product",
+          _id: "$items.productId",
           sales: { $sum: "$items.quantity" },
           revenue: { $sum: { $multiply: ["$items.quantity", "$items.price"] } }
         }
@@ -824,7 +885,7 @@ const getCategoryBreakdown = async (req, res) => {
       {
         $lookup: {
           from: "products",
-          localField: "items.product",
+          localField: "items.productId",
           foreignField: "_id",
           as: "productInfo"
         }
@@ -1159,6 +1220,7 @@ module.exports = {
   cancelOrder,
   updateOrderStatus,
   getDailySalesReport,
+  getDailySummary,
   getAllOrdersForAdmin,
   getMonthlySalesSummary,
   checkUserPurchase,
