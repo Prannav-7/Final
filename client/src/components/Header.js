@@ -462,43 +462,44 @@ const Header = () => {
                 )}
               </Link>
 
-              {/* Wishlist */}
-              {windowWidth > 380 && (
-                <Link to="/wishlist" className="wishlist-link" style={{ 
-                  color: '#2c3e50', 
-                  textDecoration: 'none',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: getResponsiveStyle('2px', '3px', '4px'),
-                  padding: getResponsiveStyle('8px 10px', '10px 12px', '12px 16px'),
-                  borderRadius: getResponsiveStyle('12px', '14px', '16px'),
-                  transition: 'all 0.3s ease',
-                  minWidth: '44px',
-                  minHeight: '44px',
-                  justifyContent: 'center'
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.background = 'linear-gradient(135deg, #ff6b6b 0%, #ff8e53 100%)';
-                  e.currentTarget.style.color = 'white';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.background = 'transparent';
-                  e.currentTarget.style.color = '#2c3e50';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }}
-                >
-                  <span style={{ fontSize: getResponsiveStyle('1.2rem', '1.3rem', '1.4rem') }}>❤️</span>
-                  {windowWidth > 480 && (
-                    <span style={{ 
-                      fontSize: getResponsiveStyle('9px', '10px', '11px'), 
-                      fontWeight: '600',
-                      lineHeight: '1'
-                    }}>Wishlist</span>
-                  )}
-                </Link>
-              )}
+              {/* Wishlist - Always Visible */}
+              <Link to="/wishlist" className="wishlist-link" style={{ 
+                color: '#2c3e50', 
+                textDecoration: 'none',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: getResponsiveStyle('2px', '3px', '4px'),
+                padding: getResponsiveStyle('8px 10px', '10px 12px', '12px 16px'),
+                borderRadius: getResponsiveStyle('12px', '14px', '16px'),
+                transition: 'all 0.3s ease',
+                minWidth: '44px',
+                minHeight: '44px',
+                justifyContent: 'center',
+                position: 'relative'
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.background = 'linear-gradient(135deg, #ff6b6b 0%, #ff8e53 100%)';
+                e.currentTarget.style.color = 'white';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 107, 107, 0.3)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.color = '#2c3e50';
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+              >
+                <span style={{ fontSize: getResponsiveStyle('1.2rem', '1.3rem', '1.4rem') }}>❤️</span>
+                {windowWidth > 480 && (
+                  <span style={{ 
+                    fontSize: getResponsiveStyle('9px', '10px', '11px'), 
+                    fontWeight: '600',
+                    lineHeight: '1'
+                  }}>Wishlist</span>
+                )}
+              </Link>
 
               {/* User Account - Enhanced */}
               <div style={{ position: 'relative', marginLeft: getResponsiveStyle('4px', '6px', '8px') }}>

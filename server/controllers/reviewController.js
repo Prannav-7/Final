@@ -87,9 +87,18 @@ const getProductReviews = async (req, res) => {
 const addReview = async (req, res) => {
   try {
     const { productId } = req.params;
-    const { rating, title, comment, images } = req.body;
+    const { rating, title, comment } = req.body;
     const userId = req.user ? req.user.id : null;
     const userName = req.user ? req.user.name : 'Anonymous User';
+
+    console.log('=== ADD REVIEW DEBUG ===');
+    console.log('Product ID:', productId);
+    console.log('Request body:', req.body);
+    console.log('Request files:', req.files);
+    console.log('User:', req.user ? req.user.email : 'null');
+    console.log('Rating:', rating, typeof rating);
+    console.log('Title:', title);
+    console.log('Comment:', comment);
 
     // Check if product exists
     const product = await Product.findById(productId);
@@ -100,14 +109,20 @@ const addReview = async (req, res) => {
       });
     }
 
-    // For demo purposes, allow anonymous reviews
-    // In production, you might want to require authentication
-    
     // Validate rating
-    if (!rating || rating < 1 || rating > 5) {
+    const ratingNum = parseInt(rating);
+    if (!ratingNum || ratingNum < 1 || ratingNum > 5) {
       return res.status(400).json({
         success: false,
         message: 'Rating must be between 1 and 5'
+      });
+    }
+
+    // Process uploaded images
+    const imageUrls = [];
+    if (req.files && req.files.length > 0) {
+      req.files.forEach(file => {
+        imageUrls.push(`/uploads/reviews/${file.filename}`);
       });
     }
 
@@ -116,11 +131,11 @@ const addReview = async (req, res) => {
       productId,
       userId: userId || new mongoose.Types.ObjectId(), // Create dummy ObjectId for anonymous users
       userName,
-      rating,
-      title: title || '',
+      rating: ratingNum,
+      title: title || `Review by ${userName}`,
       comment: comment || '',
-      images: images || [],
-      verified: false
+      images: imageUrls,
+      verified: userId ? true : false
     });
 
     await newReview.save();

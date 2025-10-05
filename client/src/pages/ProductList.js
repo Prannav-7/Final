@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import api from '../api';
 import Header from '../components/Header';
+import StarRating from '../components/StarRating';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
 
@@ -395,6 +396,18 @@ const ProductList = () => {
                   }}>
                     {product.description.substring(0, 120)}...
                   </p>
+                  
+                  {/* Rating Display */}
+                  <div style={{ marginBottom: '12px' }}>
+                    <StarRating 
+                      rating={product.averageRating || 0}
+                      reviewCount={product.reviewCount || 0}
+                      size="small"
+                      showText={true}
+                      compact={true}
+                    />
+                  </div>
+                  
                   <div style={{ 
                     display: 'flex', 
                     justifyContent: 'space-between', 
