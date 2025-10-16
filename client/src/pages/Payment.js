@@ -69,7 +69,7 @@ const Payment = () => {
       
           customerDetails: {
             firstName: deliveryAddress.name.split(' ')[0] || '',
-            lastName: deliveryAddress.name.split(' ').slice(1).join(' ') || '',
+            lastName: deliveryAddress.name.split(' ').slice(1).join(' ') || undefined,
             email: user?.email || '',
             phone: deliveryAddress.mobile,
             address: deliveryAddress.address,
@@ -100,7 +100,7 @@ const Payment = () => {
               items: orderData.items,
               customerDetails: {
                 firstName: deliveryAddress.name.split(' ')[0] || '',
-                lastName: deliveryAddress.name.split(' ').slice(1).join(' ') || '',
+                lastName: deliveryAddress.name.split(' ').slice(1).join(' ') || undefined,
                 email: user?.email || '',
                 phone: deliveryAddress.mobile,
                 address: deliveryAddress.address,
@@ -327,7 +327,7 @@ const Payment = () => {
         items: orderData.items,
         customerDetails: {
           firstName: deliveryAddress.name.split(' ')[0] || '',
-          lastName: deliveryAddress.name.split(' ').slice(1).join(' ') || '',
+          lastName: deliveryAddress.name.split(' ').slice(1).join(' ') || undefined,
           email: user?.email || '',
           phone: deliveryAddress.mobile,
           address: deliveryAddress.address,
@@ -692,7 +692,7 @@ const Payment = () => {
         items: orderData.items,
         customerDetails: {
           firstName: deliveryAddress.name.split(' ')[0] || '',
-          lastName: deliveryAddress.name.split(' ').slice(1).join(' ') || '',
+          lastName: deliveryAddress.name.split(' ').slice(1).join(' ') || undefined,
           email: user?.email || '',
           phone: deliveryAddress.mobile,
           address: deliveryAddress.address,
@@ -801,7 +801,7 @@ const Payment = () => {
         items: orderData.items,
         customerDetails: {
           firstName: deliveryAddress.name.split(' ')[0] || '',
-          lastName: deliveryAddress.name.split(' ').slice(1).join(' ') || '',
+          lastName: deliveryAddress.name.split(' ').slice(1).join(' ') || undefined,
           email: user?.email || '',
           phone: deliveryAddress.mobile,
           address: deliveryAddress.address,

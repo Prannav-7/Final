@@ -411,25 +411,98 @@ const NewAdminDashboard = () => {
                               borderRadius: '16px',
                               border: '1px solid rgba(255, 255, 255, 0.2)',
                               backdropFilter: 'blur(10px)',
-                              transition: 'all 0.3s ease'
+                              transition: 'all 0.3s ease',
+                              position: 'relative',
+                              overflow: 'hidden'
                             }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                                <h4 style={{ 
-                                  color: 'var(--text-primary)', 
-                                  margin: '0 0 0.5rem 0',
-                                  fontSize: '1.1rem',
-                                  fontWeight: '600'
-                                }}>{product.name}</h4>
-                                <span style={{
-                                  background: product.stock > 10 ? '#10b981' : product.stock > 0 ? '#f59e0b' : '#ef4444',
-                                  color: 'white',
-                                  padding: '4px 8px',
-                                  borderRadius: '8px',
-                                  fontSize: '12px',
-                                  fontWeight: '600'
+                              {/* Product Image Section */}
+                              <div style={{ 
+                                display: 'flex', 
+                                alignItems: 'center',
+                                gap: '1rem',
+                                marginBottom: '1rem'
+                              }}>
+                                <div style={{
+                                  width: '80px',
+                                  height: '80px',
+                                  borderRadius: '12px',
+                                  overflow: 'hidden',
+                                  border: '2px solid rgba(255, 255, 255, 0.2)',
+                                  background: 'rgba(255, 255, 255, 0.1)',
+                                  flexShrink: 0,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center'
                                 }}>
-                                  {product.stock > 10 ? 'In Stock' : product.stock > 0 ? 'Low Stock' : 'Out of Stock'}
-                                </span>
+                                  <img
+                                    src={product.imageUrl ? `http://localhost:5000${product.imageUrl}` : '/images/default-product.svg'}
+                                    alt={product.name}
+                                    style={{
+                                      width: '100%',
+                                      height: '100%',
+                                      objectFit: 'cover',
+                                      borderRadius: '8px',
+                                      transition: 'transform 0.3s ease'
+                                    }}
+                                    onError={(e) => {
+                                      e.target.src = '/images/default-product.svg';
+                                    }}
+                                    onMouseOver={(e) => {
+                                      e.target.style.transform = 'scale(1.1)';
+                                    }}
+                                    onMouseOut={(e) => {
+                                      e.target.style.transform = 'scale(1)';
+                                    }}
+                                  />
+                                </div>
+                                
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                                    <h4 style={{ 
+                                      color: 'var(--text-primary)', 
+                                      margin: 0,
+                                      fontSize: '1.1rem',
+                                      fontWeight: '600',
+                                      lineHeight: '1.3',
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                      whiteSpace: 'nowrap'
+                                    }}>{product.name}</h4>
+                                    <span style={{
+                                      background: product.stock > 10 ? '#10b981' : product.stock > 0 ? '#f59e0b' : '#ef4444',
+                                      color: 'white',
+                                      padding: '4px 8px',
+                                      borderRadius: '8px',
+                                      fontSize: '10px',
+                                      fontWeight: '600',
+                                      whiteSpace: 'nowrap',
+                                      marginLeft: '8px'
+                                    }}>
+                                      {product.stock > 10 ? 'In Stock' : product.stock > 0 ? 'Low Stock' : 'Out of Stock'}
+                                    </span>
+                                  </div>
+                                  
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <p style={{ 
+                                      color: 'var(--text-primary)', 
+                                      fontSize: '1.2rem', 
+                                      fontWeight: '700', 
+                                      margin: '0' 
+                                    }}>
+                                      ₹{product.price?.toLocaleString()}
+                                    </p>
+                                    <span style={{
+                                      background: 'rgba(102, 126, 234, 0.2)',
+                                      color: '#667eea',
+                                      padding: '4px 8px',
+                                      borderRadius: '8px',
+                                      fontSize: '10px',
+                                      fontWeight: '600'
+                                    }}>
+                                      {product.category}
+                                    </span>
+                                  </div>
+                                </div>
                               </div>
                               
                               <p style={{ 

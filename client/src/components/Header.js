@@ -12,7 +12,6 @@ const Header = () => {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
-  const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
 
   // Handle window resize for responsive design
@@ -35,26 +34,6 @@ const Header = () => {
     navigate('/');
   };
 
-  // Search functionality
-  const handleSearch = (e) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
-    } else {
-      navigate('/products');
-    }
-  };
-
-  const handleSearchInputChange = (e) => {
-    setSearchQuery(e.target.value);
-  };
-
-  const handleSearchKeyPress = (e) => {
-    if (e.key === 'Enter') {
-      handleSearch(e);
-    }
-  };
-
   // Responsive style functions
   const getResponsiveStyle = (mobile, tablet, desktop) => {
     if (windowWidth <= 480) return mobile;
@@ -73,7 +52,6 @@ const Header = () => {
           .brand-text h1 { font-size: 1.2rem !important; }
           .brand-text p { font-size: 0.75rem !important; }
           .header-content { flex-wrap: wrap !important; }
-          .search-bar-container { order: 3; width: 100%; margin-top: 10px; }
         }
         
         @media (min-width: 481px) and (max-width: 768px) {
@@ -296,80 +274,7 @@ const Header = () => {
               </div>
             </Link>
 
-            {/* Search Bar - Responsive */}
-            <div className="search-bar-container responsive-container" style={{ 
-              flex: window.innerWidth <= 768 ? '0 0 auto' : '1', 
-              maxWidth: window.innerWidth <= 768 ? 'none' : '500px', 
-              margin: window.innerWidth <= 768 ? '0' : '0 20px',
-              position: 'relative',
-              display: window.innerWidth <= 480 ? 'none' : 'block',
-              width: window.innerWidth <= 768 ? '100%' : 'auto',
-              order: window.innerWidth <= 768 ? '3' : 'initial'
-            }}>
-              <div className="search-input-wrapper" style={{
-                position: 'relative',
-                background: '#f8f9fa',
-                borderRadius: window.innerWidth <= 768 ? '25px' : '50px',
-                overflow: 'hidden',
-                border: '2px solid transparent',
-                transition: 'all 0.3s ease'
-              }}>
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={handleSearchInputChange}
-                  onKeyPress={handleSearchKeyPress}
-                  placeholder={window.innerWidth <= 768 ? "Search products..." : "Search for electrical products, switches, lights..."}
-                  className="responsive-input"
-                  style={{
-                    width: '100%',
-                    padding: window.innerWidth <= 768 ? '10px 50px 10px 16px' : '14px 60px 14px 24px',
-                    border: 'none',
-                    background: 'transparent',
-                    fontSize: window.innerWidth <= 768 ? '13px' : '14px',
-                    outline: 'none',
-                    fontWeight: '500'
-                  }}
-                  onFocus={(e) => {
-                    e.target.parentElement.style.borderColor = '#667eea';
-                    e.target.parentElement.style.background = 'white';
-                    e.target.parentElement.style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
-                  }}
-                  onBlur={(e) => {
-                    e.target.parentElement.style.borderColor = 'transparent';
-                    e.target.parentElement.style.background = '#f8f9fa';
-                    e.target.parentElement.style.boxShadow = 'none';
-                  }}
-                />
-                <button 
-                  className="search-btn" 
-                  onClick={handleSearch}
-                  type="button"
-                  style={{
-                    position: 'absolute',
-                    right: window.innerWidth <= 768 ? '4px' : '6px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '50%',
-                    width: window.innerWidth <= 768 ? '32px' : '40px',
-                    height: window.innerWidth <= 768 ? '32px' : '40px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: window.innerWidth <= 768 ? '14px' : '16px',
-                    transition: 'all 0.3s ease'
-                  }}
-                  onMouseOver={(e) => e.target.style.transform = 'translateY(-50%) scale(1.05)'}
-                  onMouseOut={(e) => e.target.style.transform = 'translateY(-50%) scale(1)'}
-                >
-                  🔍
-                </button>
-              </div>
-            </div>
+
 
             {/* User Actions - Enhanced */}
             <div className="user-actions" style={{ 

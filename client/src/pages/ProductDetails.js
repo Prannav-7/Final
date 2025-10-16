@@ -622,13 +622,22 @@ const ProductDetails = () => {
                       <div key={index} className="review-item">
                         <div className="review-header">
                           <div className="reviewer-info">
-                            <span className="reviewer-name">{review.userName}</span>
+                            <div className="reviewer-name-section">
+                              <span className="reviewer-name">
+                                👤 {review.user || review.userName || 'Anonymous User'}
+                              </span>
+                              <span className="review-date">
+                                📅 {new Date(review.date || review.createdAt).toLocaleDateString('en-US', {
+                                  year: 'numeric',
+                                  month: 'long',
+                                  day: 'numeric'
+                                })}
+                              </span>
+                            </div>
                             <div className="review-rating">
                               <StarRating rating={review.rating} readonly />
+                              <span className="rating-text">({review.rating}/5)</span>
                             </div>
-                            <span className="review-date">
-                              {new Date(review.createdAt).toLocaleDateString()}
-                            </span>
                           </div>
                         </div>
                         <div className="review-content">
